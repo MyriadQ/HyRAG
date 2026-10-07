@@ -1,0 +1,19 @@
+# corpus — PDFs stay local (licence + size), hashes are committed in CORPUS.md
+corpus/
+
+# papers — third-party PDFs, kept local (reading reference; never shipped)
+papers/
+
+# models / indexes / caches
+models/
+.cache/
+artifacts/
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+.env
+
+# os
+.DS_Store
