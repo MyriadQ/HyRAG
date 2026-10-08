@@ -53,10 +53,12 @@ One extraction pass → two artifacts (graph, community reports) → three strat
 
 ## State — as of 2026-10-07
 
-**Corpus acquired and frozen.** 18 documents · 3,939 pp (`CORPUS.md`, `corpus.sha256`); dev slice v1 · 508 pp (`slice.sha256`). No code yet.
+**Corpus frozen; the parse stage runs.** 18 documents · 3,939 pp (`CORPUS.md`, `corpus.sha256`); dev slice v1 · 508 pp (`slice.sha256`). Code: `hyrag/parse/` — PDF → anchored blocks with section context (12/12 slice documents, 3,181 blocks). Chunking is the next step; the node gate is not closed yet.
 
 - **Corpus:** FAA PHAK/AFH/AIM + FSB 737 · 5 NTSB AARs · 2 AAIB reports · 5 Airbus Safety First articles · 2 OEM MMELs (Boeing 737, Airbus A320 — link-only). PDFs stay local; hashes are committed.
-- **`corpus` → done. `parse` is the current node** (`nodes/parse.md`). Everything downstream is `unknown`.
+- **`corpus` → done. `parse` is the current node** (`nodes/parse.md`) — parse built, chunker + gate remaining. Everything downstream is `unknown`.
+- **Parse output:** `parsed/<stem>/blocks.jsonl` (LightRAG sidecar format: `blockid`, `content`, `heading`/`parent_headings`/`level`, `positions[].anchor`+`physical`+`range`) and `parsed/<stem>/meta.json` (page sizes, physical→printed page map with provenance, heading outline, hashes). `parsed/` is gitignored — regenerable.
+- **Run it:** `uv run python -m hyrag.parse.cli parse --all` · `… check --all` (invariants + byte-determinism) · `… show <stem> --headings|--labels|--page N`.
 - Git initialized 2026-10-07; **first commit pending** — the eval-set freeze is enforced by commit order.
 
 ---
