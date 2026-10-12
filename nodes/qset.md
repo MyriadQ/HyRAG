@@ -1,6 +1,6 @@
 # qset — 150 questions, 50 per class, frozen in git
 
-**~5 h** · **blocks** nothing · **gate** at the bottom · **status** ▶ current (opened 2026-10-11)
+**~5 h** · **blocks** nothing · **gate** at the bottom · **status** ✅ done (2026-10-11) — 150 questions frozen, commit **`2c5de79`**, which predates any `router`
 
 > **How to use this page.** Open it at the start of this node; close it when the gate is green. The output is one committed file, not a pipeline. The `qset` is the instrument the whole benchmark is measured with — it is frozen **before** `router` exists, because `router`'s class→strategy table is read *off* these results (`PREPLAN.md` §5.6, §2.3, §10 Q4). Tuning questions after the fact is tuning on the test set.
 
@@ -85,7 +85,7 @@ Balancing rule: the three classes should be roughly **equally hard to answer fro
 
 > committed; its commit SHA predates `router`'s
 
-Concretely: 50/50/50 · every question's evidence target resolves to real `blockid`s in the ingest set · no question names a system or technique · the SHA is on this page and in the session file.
+**Met.** `qset/questions.jsonl` — 150 questions, 50/50/50, every one with a gold answer, an evidence target that resolves to real `blockid`s in the ingest set, and a citation; no question names a system, a technique or our sources (checked mechanically on write). Committed as **`2c5de79`** (*"150 question frozen, gate artifact"*), alongside `keep.txt`, `selection.md` and `final.md`. **`router` does not exist yet** — that is the ordering the gate is about, and this commit is the proof.
 
 ## Decisions already locked
 

@@ -9,6 +9,16 @@ models/
 .cache/
 artifacts/
 
+# parse output — derived data (node `parse`): regenerate, never commit
+parsed/
+
+# local playground — experiments only, never part of the pipeline
+scratch/
+.ipynb_checkpoints/
+
+# working diagrams — scratch aids, edited while a node is in progress
+diagrams/
+
 # python
 .venv/
 __pycache__/
@@ -17,3 +27,15 @@ __pycache__/
 
 # os
 .DS_Store
+
+# qset drafts — carry source text (© OEM); only questions.jsonl is committed
+qset/drafts.jsonl
+qset/review.md
+qset/critique.jsonl
+qset/shortlist.jsonl
+
+# working documents and journals — local only, never published
+AGENTS.md
+PREPLAN.md
+ROADMAP.md
+sessions/
