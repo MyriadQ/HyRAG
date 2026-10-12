@@ -22,16 +22,16 @@ Citations are `file, §section, p. N–M` (D13), and nothing in the stack emits 
 - Every chunk carries file id · section heading or explicit `none` · **page range** — never a single page (D13; ~2/3 of chunks cross a boundary).
 - Page labels survive the whole chain: parser anchor → block → chunk → store. Nothing between us and the store may drop them; the join is ours.
 - Deterministic and re-runnable: same PDFs in → identical chunks out. Not a notebook (D11).
-- Chunking is single and shared — one chunk set for all four rows (`PREPLAN.md` §6, D16).
-- **No byte-identical chunk pair reaches ingest.** LightRAG keys chunks by content, so a duplicate that survives chunking silently merges two documents into one citation. The chunker collapses duplicates and records *all* their locations — `chunk_id → [(file, §section, page range), …]` — so the citation enumerates them instead of picking one. Rationale and the rejected alternative: `PREPLAN.md` §5.6.
+- Chunking is single and shared — one chunk set for all four rows (README → *Decisions*, D16).
+- **No byte-identical chunk pair reaches ingest.** LightRAG keys chunks by content, so a duplicate that survives chunking silently merges two documents into one citation. The chunker collapses duplicates and records *all* their locations — `chunk_id → [(file, §section, page range), …]` — so the citation enumerates them instead of picking one. Rationale and the rejected alternative: README → *Decisions*, the provenance chain.
 - ~~The handbook layer (PHAK/AFH/AIM) gets a parse-only smoke test once the slice passes~~ — **run 2026-10-11**: 1,846 pp parsed, all invariants and determinism pass on all three; it found one real gap, in AIM's printed page labels (Discoveries).
 
 ## Open questions (settle before writing code)
 
 1. ~~**Docling or MinerU**~~ — **settled: Docling**, native, no Docker. MinerU was dropped: Docling emits `prov` on every item (the anchor this node exists for) and runs in-process (`uv`), with no service. MinerU's `middle.json` also carries page anchors, but it costs a service for no anchor gain. `native` refuses PDFs and `legacy` emits no sidecar at all.
 2. **Where chunking happens** — LightRAG's tokenizer or ours? If ours: which LightRAG API ingests pre-chunked text with `file_path` intact? Check the core insert paths in the source before deciding. *(Open — next session. The parse stage deliberately stops at blocks; a chunk must keep the block ids it came from.)*
-3. ~~**Heading detection**~~ — **settled**, one rule set per layout, selected by registry (never auto-detected): `mmel` (ATA chapter line, incl. inside the page-sized table), `report` (NTSB numbering depth), `aaib` (unnumbered), `article` (caps/title case), `handbook` (generic). A block with no heading above it carries `heading=""`, `level=0`. Details and the measured traps: `sessions/S02-parse.md`.
-4. ~~**Chunk size**~~ — **settled 2026-10-11: `max_tokens=1200`, `overlap=64`, `section_policy=significant`** (measured on the slice; see Discoveries). The trade in `PREPLAN.md` §10 Q2 was real: citation width 2.1 sheets at 1200 against 1.5 at 512.
+3. ~~**Heading detection**~~ — **settled**, one rule set per layout, selected by registry (never auto-detected): `mmel` (ATA chapter line, incl. inside the page-sized table), `report` (NTSB numbering depth), `aaib` (unnumbered), `article` (caps/title case), `handbook` (generic). A block with no heading above it carries `heading=""`, `level=0`. Details and the measured traps: the build log (kept locally).
+4. ~~**Chunk size**~~ — **settled 2026-10-11: `max_tokens=1200`, `overlap=64`, `section_policy=significant`** (measured on the slice; see Discoveries). The trade was real: citation width 2.1 sheets at 1200 against 1.5 at 512.
 
 ## Built — the parse stage (2026-10-07)
 
@@ -75,12 +75,12 @@ uv run python -m hyrag.chunker.cli cite <stem> --index N [--verify] [--drop-prov
 | `checks.py` | 9 per-document invariants + 3 corpus ones + `pdf_spot_check` (reads the PDF with `pypdfium2`, not our sidecar) |
 | `cli.py` | `chunk` · `check` · `cite` |
 
-A citation chain that breaks raises `ProvenanceError` and the command exits 2 — never a plausible page number (PREPLAN §5.6 step 4). The gate's deliberate-failure demo is `cite --drop-provenance`.
+A citation chain that breaks raises `ProvenanceError` and the command exits 2 — never a plausible page number (README → *Decisions*, the provenance chain). The gate's deliberate-failure demo is `cite --drop-provenance`.
 
 ## Reading (what to extract)
 
-1. `PREPLAN.md` §2.3 Case A + §6 Contracts (Parse row) — the exact citation chain to produce. ~20 min.
-2. `PREPLAN.md` §8 — the verified parser facts (sidecar `positions[].anchor`, 53/80 page-spanning chunks in the probe run) and §10 Q1–Q2. ~15 min.
+1. README → *The three question classes* (factoid) and *Component contracts* (Parse) — the exact citation chain to produce. ~20 min.
+2. The parser's own docstrings — `hyrag/parse/sidecar.py` (the anchor policy) and `pyproject.toml` (the pinned Docling) — plus the README's *Decisions* D13. ~15 min.
 3. LightRAG `docs/` — what `native` vs `legacy` emit, and the ingestion path for externally chunked text (`ProgramingWithCore.md`). ~30 min.
 4. Docling provenance docs vs MinerU `middle.json` — page anchor structure on each side. ~30 min.
 
@@ -127,4 +127,4 @@ Concretely: demonstrate on ≥3 slice layouts, and show it **fail** once (drop p
 
 ## Session log
 
-- `sessions/S02-parse.md` — parse stage built, slice parsed (508 pp · 3,181 blocks · 473 headings), checks 12/12. Chunking left to the next session by decision.
+- the build log (kept locally) — parse stage built, slice parsed (508 pp · 3,181 blocks · 473 headings), checks 12/12. Chunking left to the next session by decision.

@@ -41,7 +41,7 @@
 
 ## Deliberately not included (and why)
 
-- **Boeing ACAP / airport-planning docs** — dimension and weight tables, no relationships: PREPLAN §11 calls them the worst graph material (D14).
+- **Boeing ACAP / airport-planning docs** — dimension and weight tables, no relationships: `CORPUS.md` records them as the worst graph material (D14).
 - **TCDS (FAA A16WE, EASA A.064)** — mostly tables; deferred, can be pulled from FAA DRS if wanted.
 - **Airworthiness Directives** — many small documents; deferred.
 - **NASA ASRS** — the Kaggle dump needs account auth; deferred.

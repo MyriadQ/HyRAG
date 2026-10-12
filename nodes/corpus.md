@@ -12,7 +12,7 @@ Everything downstream — chunks, graph, communities, the frozen 150 questions, 
 
 | | |
 |---|---|
-| **in** | the licence-vetted source table in `PREPLAN.md` §11 + public URLs |
+| **in** | the licence-vetted source table in `CORPUS.md` + public URLs |
 | **out** | PDFs on disk, `CORPUS.md` manifest, `corpus.sha256` |
 | **writes** | `corpus/**` (gitignored), `CORPUS.md`, `corpus.sha256` |
 | **feeds** | `parse` (the PDFs), `qset` (the content questions are written about) |
@@ -20,7 +20,7 @@ Everything downstream — chunks, graph, communities, the frozen 150 questions, 
 ## Contract
 
 - Every PDF on disk appears in `CORPUS.md` with source URL, licence class, page count and sha256.
-- **Vendored** (redistributable) vs **link-only** (© OEM — local copy only, never committed or reposted) follows `PREPLAN.md` §11.
+- **Vendored** (redistributable) vs **link-only** (© OEM — local copy only, never committed or reposted) is recorded in `CORPUS.md`.
 - Frozen: additions/removals are recorded in the manifest — no silent file edits.
 - The PDFs stay local; hashes are committed (size rationale — matches DeepWalk's "data gitignored, hashes committed").
 - Narrative-heavy selection (D14: extractability over brand).
@@ -39,7 +39,7 @@ Everything downstream — chunks, graph, communities, the frozen 150 questions, 
 
 ## Gate
 
-**“licence manifest + every PDF on disk with a checksum”** (`ROADMAP.md`).
+**“licence manifest + every PDF on disk with a checksum”** (the README's *State*).
 
 Green when: `CORPUS.md` covers every file **and** `shasum -a 256 -c corpus.sha256` passes from the repo root.
 
@@ -64,4 +64,4 @@ Green when: `CORPUS.md` covers every file **and** `shasum -a 256 -c corpus.sha25
 
 ## Session log
 
-- `sessions/S01-corpus.md` — 2026-10-07: acquisition, manifest, checksums, dev slice v1.
+- the build log (kept locally) — 2026-10-07: acquisition, manifest, checksums, dev slice v1.

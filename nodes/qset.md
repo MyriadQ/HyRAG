@@ -2,7 +2,7 @@
 
 **~5 h** · **blocks** nothing · **gate** at the bottom · **status** ✅ done (2026-10-11) — 150 questions frozen, commit **`2c5de79`**, which predates any `router`
 
-> **How to use this page.** Open it at the start of this node; close it when the gate is green. The output is one committed file, not a pipeline. The `qset` is the instrument the whole benchmark is measured with — it is frozen **before** `router` exists, because `router`'s class→strategy table is read *off* these results (`PREPLAN.md` §5.6, §2.3, §10 Q4). Tuning questions after the fact is tuning on the test set.
+> **How to use this page.** Open it at the start of this node; close it when the gate is green. The output is one committed file, not a pipeline. The `qset` is the instrument the whole benchmark is measured with — it is frozen **before** `router` exists, because `router`'s class→strategy table is read *off* these results (README → *Decisions* D1–D2 for the shared graph, and *The three question classes*). Tuning questions after the fact is tuning on the test set.
 
 ## How to run it
 
@@ -23,7 +23,7 @@ Two traps, both hit on 2026-10-11 and both worth knowing once:
 
 ## Purpose
 
-`ROADMAP.md` compares four systems on the same three classes of question. Every number in the results table is an answer to a question from this file, so the file's quality is the experiment's ceiling: a set that is 90% factoid makes the thematic column meaningless, and a set drawn from one document measures that document, not the corpus. The `qset` is also the only artifact in the project whose **commit SHA is load-bearing** — it is the proof that the questions predate the router.
+The benchmark compares four systems on the same three classes of question. Every number in the results table is an answer to a question from this file, so the file's quality is the experiment's ceiling: a set that is 90% factoid makes the thematic column meaningless, and a set drawn from one document measures that document, not the corpus. The `qset` is also the only artifact in the project whose **commit SHA is load-bearing** — it is the proof that the questions predate the router.
 
 ## Black box
 
@@ -67,10 +67,10 @@ Balancing rule: the three classes should be roughly **equally hard to answer fro
 ## Open questions — settle before generating anything
 
 1. ~~**Gold answer per question, or reference-free?**~~ — **settled 2026-10-11: gold answers, on every question**, with the thematic caveat written into the contract above. What it costs: ~150 short answers reviewed in the same pass that filters the questions, and the risk that a wrong reference makes every row wrong in the same direction — hence the rule that no answer is admitted without the page it was read from.
-2. ~~**Which documents feed the questions.**~~ — **settled 2026-10-11: the dev slice, and the benchmark is evaluated on it** (`PREPLAN.md` §7). 375 chunks, both manufacturers, everything chunked and gated today. What this costs: the thematic class draws on **two** NTSB reports rather than five, and the report states the scope as a limitation. The full corpus stays a Phase 2 scale-up.
+2. ~~**Which documents feed the questions.**~~ — **settled 2026-10-11: the dev slice, and the benchmark is evaluated on it** (README → *State*). 375 chunks, both manufacturers, everything chunked and gated today. What this costs: the thematic class draws on **two** NTSB reports rather than five, and the report states the scope as a limitation. The full corpus stays a Phase 2 scale-up.
 3. **Class → document distribution.** Which documents can carry a thematic question at all (it needs cross-document reach, ideally across both manufacturers)? No single document may dominate a class.
 4. **Who drafts.** LLM-generated from **chunks** (not raw text), then hand-filtered — the prompt and the model are recorded in the session file, per §7.5.
-5. **Unanswerable questions** — the three classes are fixed by `ROADMAP.md`; a refusal probe would have to live *inside* a class or be struck. Decide explicitly rather than letting a few slip in.
+5. **Unanswerable questions** — the three classes are fixed by the benchmark's design; a refusal probe would have to live *inside* a class or be struck. Decide explicitly rather than letting a few slip in.
 
 ## Procedure
 
@@ -89,10 +89,10 @@ Balancing rule: the three classes should be roughly **equally hard to answer fro
 
 ## Decisions already locked
 
-- 150 questions, 50 per class (`ROADMAP.md`).
-- The three classes are factoid · multi-hop · thematic (`PREPLAN.md` §2.3, D5).
+- 150 questions, 50 per class (the README's *State*).
+- The three classes are factoid · multi-hop · thematic (README → *Decisions* D5 and *The three question classes*).
 - The judge reads it through DeepEval (D8c); the harness owns the protocol (§7.2).
-- The questions come from the **dev slice**, and the benchmark is evaluated on the slice (`PREPLAN.md` §7) — decided 2026-10-11 to keep four indexing runs cheap.
+- The questions come from the **dev slice**, and the benchmark is evaluated on the slice (README → *State*) — decided 2026-10-11 to keep four indexing runs cheap.
 
 ## If the gate fails
 
