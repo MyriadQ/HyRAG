@@ -38,15 +38,19 @@ import json
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 
 from hyrag.chunker.store import INGEST_NAME, read_jsonl
 from hyrag.embedding.encoder import _load, encode
+from hyrag.parse.config import PARSED, REPO
 
-INGEST_PATH = Path("parsed") / INGEST_NAME  # the one chunk set all four rows read (D16)
-QSET_PATH = Path("qset") / "questions.jsonl"
+# Repo-root absolute, resolved from `__file__` inside `hyrag.parse.config` — never relative to
+# the working directory, so this module behaves the same from a notebook in `scratch/` as it
+# does from `uv run` at the repo root. `hyrag.qset.draft.QUESTIONS` names the same file as
+# QSET_PATH; importing it would drag the drafting module's imports in with it.
+INGEST_PATH = PARSED / INGEST_NAME  # the one chunk set all four rows read 
+QSET_PATH = REPO / "qset" / "questions.jsonl"
 CLASSES = ("factoid", "multi-hop", "thematic")
 K_VALUES = (1, 5, 10, 20, 50, 100)  # the recall curve's x-axis
 
