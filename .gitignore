@@ -34,6 +34,10 @@ qset/review.md
 qset/critique.jsonl
 qset/shortlist.jsonl
 
+# benchmark answers — carry corpus-derived text (© OEM), same reason as the qset drafts.
+# Only the results table itself (results.csv, §7.5) is ever committed.
+results/
+
 # working documents and journals — local only, never published
 AGENTS.md
 PREPLAN.md

@@ -59,8 +59,8 @@ All four rows of the judge read the **same chunks**, so a difference between the
 | where | what |
 |---|---|
 | **`README.md`** (this file) | the architecture, the decisions, the protocol and the current state — the whole design in one place |
-| `nodes/⟨id⟩-*.md` | one design page per pipeline stage, written when that stage opens. `corpus`, `parse` and `qset` are closed; `baseline` is current |
-| `hyrag/` | the pipeline: `parse/` (PDFs → anchored blocks) · `chunker/` (blocks → chunks carrying page ranges) · `qset/` (the question set's drafting harness) |
+| `nodes/⟨id⟩-*.md` | one design page per pipeline stage, written when that stage opens. `corpus`, `parse`, `qset` and `baseline` are closed; `kg-light` is current |
+| `hyrag/` | the pipeline: `parse/` (PDFs → anchored blocks) · `chunker/` (blocks → chunks carrying page ranges) · `qset/` (the question set's drafting harness) · `embedding/` (one encoder for all four rows) · `baseline/` (the R1 index: `store.py`, `answer.py`, `cli.py`, `checks.py`) |
 | `qset/questions.jsonl` | the evaluation instrument: 150 questions, each with a gold answer and an evidence target |
 | `papers/` | the source papers — `graphrag_google.pdf` **is** the Microsoft GraphRAG paper despite the filename, `rag.pdf` is Lewis et al. 2020. Third-party PDFs, not redistributed here |
 
@@ -143,18 +143,22 @@ The protocol comes from the two source papers; their published numbers do not �
 
 ---
 
-## State — as of 2026-10-11
+## State — as of 2026-10-14
 
-**Corpus frozen; parse, chunker and question set done; the benchmark is next.** 18 documents · 3,939 pp (`CORPUS.md`, `corpus.sha256`); dev slice v1 · 508 pp (`slice.sha256`) — and the benchmark is evaluated on **the slice**, not the full corpus. The pipeline goes `parsed/<stem>/blocks.jsonl` → **375 chunks** (369 unique, 6 collapsed) → **150 questions** (50 factoid · 50 multi-hop · 50 thematic), every one with a gold answer and an evidence target.
+**Corpus frozen; parse, chunker, question set and the naive-RAG baseline are done; LightRAG is next.** 18 documents · 3,939 pp (`CORPUS.md`, `corpus.sha256`); dev slice v1 · 508 pp (`slice.sha256`) — and the benchmark is evaluated on **the slice**, not the full corpus. The pipeline goes `parsed/<stem>/blocks.jsonl` → **375 chunks** (369 unique, 6 collapsed) → **150 questions** (50 factoid · 50 multi-hop · 50 thematic) → **150 generated answers**, every one carrying a citation.
 
-Restructured this week for the two-part assignment: three standalone systems are benchmarked, and the delivered system is a fourth row that shares one graph. The demo is gone; the deliverable is an oral presentation plus a report.
+Restructured for the two-part assignment: three standalone systems are benchmarked, and the delivered system is a fourth row that shares one graph. The demo is gone; the deliverable is an oral presentation plus a report.
 
-- **`corpus`, `parse`, `qset` → done.** Each chunk keeps the block ids it was built from, so `§section` and the page range are **derived**, never guessed: a citation is `file.pdf, §section, p. N–M`, verified end to end (111/111 checks, including a spot check of cited pages against the PDFs themselves and a deliberate provenance-drop failure that exits non-zero). The **`qset`** is frozen at commit **`2c5de79`** — and that commit predates any `router`, which is the ordering the whole benchmark rests on. **The next node is `baseline`**; everything downstream of it is `unknown`.
+- **`corpus`, `parse`, `qset`, `baseline` → done.** Each chunk keeps the block ids it was built from, so `§section` and the page range are **derived**, never guessed: a citation is `file.pdf, §section, p. N–M`, verified end to end (111/111 checks, including a spot check of cited pages against the PDFs themselves and a deliberate provenance-drop failure that exits non-zero). The **`qset`** is frozen at commit **`2c5de79`** — and that commit predates any `router`, which is the ordering the whole benchmark rests on.
+- **The baseline row is the benchmark's first number.** 150/150 questions answered, every answer carrying at least one citation, zero fabricated sources; 2.44 M prompt + 291 k completion tokens, 10.4 s mean latency, `k = 20` (thinking on, temperature 0, prompt `baseline-answer-1`). Its per-class **retrieval** hit rate is what the other two rows have to beat: factoid **50/50** inside the top 5, multi-hop **49/50** inside the top 10, and thematic only **20/50** at `k = 20` — climbing to **48/50** by `k = 100`, which makes it a context-budget problem rather than a retrieval failure. That is the axis GraphRAG's community reports claim to fix, and it is now a **prediction the other two rows must falsify**. Full numbers and the two bugs found on the way: `nodes/baseline.md` → Discoveries.
+- **The next node is `kg-light`** (LightRAG's own extraction and index, plus the id map Phase 2 depends on); `kg-graph`, `judge` and everything in Phase 2 remain `unknown`.
 - **Outputs:** `parsed/<stem>/blocks.jsonl` (LightRAG sidecar format: `blockid`, `content`, `heading`/`parent_headings`/`level`, `positions[].anchor`+`physical`+`range`) · `parsed/<stem>/meta.json` (page sizes, physical→printed page map with provenance, heading outline, hashes) · `parsed/<stem>/chunks.jsonl` (chunks carrying their block ids) · `parsed/_ingest.jsonl` (the deduplicated set every benchmark row reads) · `qset/questions.jsonl` — **committed**: 150 questions, gold answers, evidence targets. `parsed/` is gitignored — regenerable.
 - **Run it** — always `uv run …` from the repo root (the packages are not installed, and bare `python` is Anaconda's):
   `python -m hyrag.parse.cli parse --all` · `… check --all` · `… show <stem> --headings|--labels|--page N`
   `python -m hyrag.chunker.cli chunk --all` · `… check --all` · `… cite <stem> --index N [--verify] [--drop-provenance]`
   `python -m hyrag.qset.cli show <draft_id>` · `… freeze` — reading the candidates never re-runs a model
+  `python -m hyrag.baseline.cli ingest` · `… search --question-id fact-003` · `… check` — the R1 index (~2 min to rebuild) · `… answer --question-id fact-003` (one traced answer) · `… answer --all` (all 150 → `results/`, ~26 min)
+  `python -m hyrag.embedding.checks` — the encoder's invariants and its recall curve
 - Git: initialised 2026-10-07; the pipeline through `qset` is committed. The one commit whose *order* matters is the question set's (`2c5de79`) — it must predate `router`, and does. Do not amend or rebase it.
 
 ---
@@ -173,6 +177,7 @@ Non-obvious constraints. Each has already cost time once, or is verified in the 
 - LightRAG's `native` parser **refuses PDFs** (docx/md/textpack only); `legacy` emits no sidecar. Page-aware parsing is Docling, native, in-process.
 - **Duplicate chunk text collapses.** LightRAG keys chunks with a content hash, so two byte-identical chunks — routine in an MMEL — become **one** key with **one** `file_path`, and a citation then points at the wrong document. Handled at chunking: exact duplicates are collapsed and **every** location is recorded, and the checks assert no identical pair reaches the ingest set (6 collapsed on the slice today). Same failure class as the entity merge below, one layer down.
 - The bridge's id join is a **map with a gate**, never a fuzzy match — built by reading LightRAG's chunk records back and asserted bijective at ingest, with any unmapped `source_id` a stop-the-line error (see *Decisions* → the provenance chain).
+- **The en dash is a landmine for every string comparison.** Our citations use `p. 62–63` with an **en dash U+2013** (`format_page_range`); the model reliably writes `p. 62-63` with an ASCII hyphen. A plain substring check therefore reads a *correct* citation as missing — it cost one answer its citation on the first baseline run. Fold dash variants on both sides before comparing (`hyrag/baseline/answer.py::_fold`). This applies to the **judge's citation-resolution metric** (§7.3) and to anything resolving LightRAG's `* [n] file_path` references back to our provenance. Same family as the `U+2212` minus sign in AIM's page labels.
 
 **Retrieval**
 - LightRAG `mix` = local + global + **naive**; `hybrid` = local + global. `mix` already contains the factoid arm, so **`mix` + reranker is the strongest thing the delivered system has to beat**. LightRAG's own README calls community reports *"inefficient"* — part of this project is an empirical test of that claim.
