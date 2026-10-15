@@ -21,6 +21,7 @@ diagrams/
 
 # python
 .venv/
+.venv-graphrag/  # GraphRAG cannot share an environment with docling (typer ranges are disjoint)
 __pycache__/
 *.py[cod]
 .env

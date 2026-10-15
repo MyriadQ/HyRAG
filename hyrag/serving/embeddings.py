@@ -33,14 +33,14 @@ import threading
 import time
 
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from hyrag.embedding.encoder import DIM, MODEL_NAME, encode
 
 log = logging.getLogger("hyrag.serving")
 
-app = FastAPI(title="hyrag embeddings", version="0.1")
+router = APIRouter()
 
 # Serialises `encode`. See the module docstring: correctness over throughput.
 _encode_lock = threading.Lock()
@@ -63,13 +63,13 @@ class EmbeddingRequest(BaseModel):
     user: str | None = None
 
 
-@app.get("/health")
+@router.get("/health")
 def health() -> dict:
     """Liveness plus the two facts a caller must not guess: which model, which dimension."""
     return {"status": "ok", "model": MODEL_NAME, "dim": DIM}
 
 
-@app.post("/v1/embeddings")
+@router.post("/v1/embeddings")
 def embeddings(request: EmbeddingRequest) -> dict:
     texts = [request.input] if isinstance(request.input, str) else list(request.input)
     if request.dimensions not in (None, DIM):

@@ -19,9 +19,9 @@ DEFAULT_PORT = 8001
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
-    from hyrag.serving.embeddings import app
+    from hyrag.serving.app import app
 
-    print(f"  embeddings on http://{args.host}:{args.port}  (health at /health)")
+    print(f"  serving on http://{args.host}:{args.port}  (/health · /v1/embeddings · /v1/chat/completions)")
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
     return 0
 

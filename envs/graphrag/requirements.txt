@@ -1,0 +1,9 @@
+# GraphRAG cannot share an environment with docling: graphrag==3.3.0 requires typer>=0.27
+# while docling<0.27 — disjoint ranges, one process, no resolution. So R3 runs in its own
+# interpreter (`.venv-graphrag`, gitignored) and is driven through its own CLI, which is what
+# the node's gate asks about anyway.
+#
+# Rebuild it with:
+#     uv venv --python 3.13 .venv-graphrag
+#     uv pip install --python .venv-graphrag/bin/python -r envs/graphrag/requirements.txt
+graphrag==3.3.0
