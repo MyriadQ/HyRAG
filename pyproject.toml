@@ -3,10 +3,15 @@ name = "hyrag"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "asyncpg>=0.32.0",
     "docling>=2.135.0",
+    "fastapi>=0.143.2",
+    "lightrag-hku",
+    "openai>=3.31.0",
     "pgvector>=0.5.1",
     "psycopg[binary]>=3.3.6",
     "tiktoken>=0.14.0",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
@@ -14,3 +19,9 @@ dev = [
     "ipykernel>=7.4.0",
     "jupyterlab>=4.6.4",
 ]
+
+[tool.uv.sources]
+# TEMPORARY: GitHub fetch failed mid-transfer (line flake), so the pin resolves from the
+# local pristine checkout of the same commit. Restore the https URL + `uv lock` when the
+# network allows; the rev is the citation either way (§6.1).
+lightrag-hku = { git = "file:///Users/celery/Repos/lightrag-453dce8", rev = "453dce8" }
