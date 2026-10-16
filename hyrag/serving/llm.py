@@ -67,6 +67,12 @@ def _record(payload: dict, *, status: int, stream: bool, rewritten: bool,
         "prompt_tokens": usage.get("prompt_tokens", 0),
         "completion_tokens": usage.get("completion_tokens", 0),
         "total_tokens": usage.get("total_tokens", 0),
+        # DeepSeek bills a cache hit at ~2% of a miss ($0.003 vs $0.15 per M, off-peak), and
+        # its `usage` block says how much of the prompt hit. Without these two fields a cost
+        # estimate must assume every prompt token is a miss — an upper bound several times the
+        # real bill for prompt-shaped workloads like extraction.
+        "prompt_cache_hit_tokens": usage.get("prompt_cache_hit_tokens", 0),
+        "prompt_cache_miss_tokens": usage.get("prompt_cache_miss_tokens", 0),
         "latency_ms": latency_ms,
         "error": error[:300],
     }
