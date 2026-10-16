@@ -164,6 +164,11 @@ psycopg (which R1 uses). `POSTGRES_PASSWORD` must exist in the environment even 
 trust-auth cluster: the storage check tests membership, not value. File-based storages write
 under `working_dir/<workspace>/`, so the graphml is one level deeper than `working_dir`.
 
+**Post-node (2026-10-16):** R2's completion calls were routed through the local proxy
+(`hyrag/serving/llm.py`, tagged `kg-light`), so §7.3's cost-per-query is now measurable for
+this row the same way it is for R3 — `query.ask` reports `usage` read back from the proxy log
+around its own call. Verified on an uncached question (2 calls · 35,303 tokens · 30.9 s).
+
 **Carried into `kg-graph`:** the DeepSeek role split (thinking off for extraction-type work,
 on for the query role), the `/v1/embeddings` endpoint (GraphRAG will point at the same one and
 its `vector_size` must match 1024), and the table layout — both rows write into the same `hyrag`

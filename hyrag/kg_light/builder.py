@@ -60,12 +60,17 @@ def _llm_func(*, thinking_off: bool, max_tokens: int, tracker: Any | None):
             kwargs.setdefault("token_tracker", tracker)
         if thinking_off:
             kwargs.setdefault("extra_body", config.THINKING_OFF)
+        # Through our own serving process, not straight to the provider: the proxy counts
+        # every call's tokens (`parsed/llm_proxy.jsonl`, tagged by `LLM_ROW`), which is what
+        # lets this row report cost per query the way R3 does. It forwards the Authorization
+        # header we send, so the key stays in `.env`.
+        kwargs.setdefault("extra_headers", {"X-Hyrag-Row": config.LLM_ROW})
         return await openai_complete_if_cache(
             model=config.LLM_MODEL,
             prompt=prompt,
             system_prompt=system_prompt,
             history_messages=history_messages or [],
-            base_url=config.deepseek_base(),
+            base_url=config.LLM_BASE,
             api_key=config.deepseek_key(),
             **kwargs,
         )

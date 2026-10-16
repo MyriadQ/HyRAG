@@ -48,6 +48,12 @@ LIGHTRAG_REV = "453dce8"  # §6.1 — the commit, not a version range
 # ---------------------------------------------------------------- embeddings
 
 EMBEDDING_URL = os.environ.get("HYRAG_EMBEDDING_URL", "http://127.0.0.1:8001/v1")
+# The chat side of the same serving process (`hyrag/serving/llm.py`). R2 used to talk to
+# DeepSeek directly, which left it as the only row that could not report what it spent: the
+# proxy counts every call and the token counts are the API's own. The row tag is how a
+# record in the shared log is attributed back to this row.
+LLM_BASE = os.environ.get("HYRAG_LLM_BASE", EMBEDDING_URL)
+LLM_ROW = "kg-light"
 EMBEDDING_MODEL = "bge-m3"
 EMBEDDING_DIM = 1024
 EMBEDDING_MAX_TOKENS = 8192  # bge-m3's window; our longest chunk is 1619 XLM-R tokens

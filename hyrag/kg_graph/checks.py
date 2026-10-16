@@ -29,7 +29,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from hyrag.kg_graph import config, inputs, run, tables
+from hyrag import llm_log
+from hyrag.kg_graph import config, inputs, resolve, run, tables
 
 _JSON = {"ensure_ascii": False, "sort_keys": True, "separators": (",", ":")}
 
@@ -128,21 +129,37 @@ def _proxy_records() -> list[dict]:
 def check_query(root: Path, question: str | None = None) -> tuple[bool, dict]:
     question = question or first_thematic_question()
     log_path = root / "logs" / "query.stdout.log"
+    marker = llm_log.log_marker()
     started = time.perf_counter()
     stdout = run.query(root, question, method="global", log_path=log_path)
     latency_ms = round((time.perf_counter() - started) * 1000)
+    usage = llm_log.usage_since(marker, row=config.LLM_ROW)
     answer = _answer_from_stdout(stdout)
     # GraphRAG answers a query it cannot ground with a canned refusal; an empty answer and a
     # refusal are different failures, and both are failures for this row's gate.
     refusal = "unable to answer this question" in answer.lower()
-    ok = len(answer.strip()) > 0 and not refusal
+    # The answer cites `[Data: Reports (…)]` — resolvable through the native tables, and a
+    # marker that does not resolve is as bad as a citation naming a page that does not exist.
+    resolution = resolve.resolve(answer, root)
+    ok = len(answer.strip()) > 0 and not refusal and not resolution["unresolved"]
     detail = "canned refusal" if refusal else f"{len(answer)} chars"
     print(f"  {'✓' if ok else '✗'} global query: {detail} · {latency_ms:,} ms · mode global · dynamic selection on")
     print(f"      {question[:110]}")
     print(f"      {answer[:200].replace(chr(10), ' ')}…")
+    print(f"      tokens: {usage['calls']} calls · {usage['total_tokens']:,} total")
+    print(f"      citations: {len(resolution['citations'])} resolved from "
+          f"{resolution['distinct_ids']} marker ids · unresolved {len(resolution['unresolved'])}"
+          + (f" · +more (truncated lists) {resolution['truncated_markers']}" if resolution["truncated_markers"] else ""))
+    if resolution["citations"]:
+        print(f"      e.g. {resolution['citations'][0]}")
     record = {"question": question, "answer": answer, "latency_ms": latency_ms,
-              "method": "global", "dynamic_selection": config.DYNAMIC_SELECTION,
-              "community_level": config.COMMUNITY_LEVEL}
+              "usage": usage, "method": "global", "dynamic_selection": config.DYNAMIC_SELECTION,
+              "community_level": config.COMMUNITY_LEVEL,
+              "citations": resolution["citations"],
+              "evidence_chunk_ids": resolution["evidence_chunk_ids"],
+              "citation_resolution": {key: resolution[key] for key in
+                                      ("markers", "ids", "distinct_ids", "resolved_ids",
+                                       "truncated_markers", "unresolved")}}
     config.QUERY_LOG.parent.mkdir(parents=True, exist_ok=True)
     with config.QUERY_LOG.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, **_JSON) + "\n")

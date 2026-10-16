@@ -21,7 +21,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from hyrag.kg_graph import checks, config, inputs, run, tables
+from hyrag.kg_graph import checks, config, inputs, resolve, run, tables
 
 ANSWER_PREVIEW = 700
 
@@ -70,6 +70,23 @@ def cmd_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_citations(args: argparse.Namespace) -> int:
+    """Resolve the last logged R3 answer's `[Data: …]` markers — no LLM call, always re-runnable."""
+    question, answer = resolve.latest_answer()
+    result = resolve.resolve(answer, _root(args))
+    print(f"\n  {question[:100]}\n")
+    print(f"  markers      {result['markers']}")
+    print(f"  ids          {result['ids']} ({result['distinct_ids']} distinct) · resolved {result['resolved_ids']}")
+    print(f"  text units   {result['text_units']} · our chunks {len(result['evidence_chunk_ids'])}")
+    print(f"  citations    {len(result['citations'])} · unresolved {len(result['unresolved'])}"
+          + (f" · +more {result['truncated_markers']}" if result["truncated_markers"] else ""))
+    for citation in result["citations"][:8]:
+        print(f"      {citation}")
+    for problem in result["unresolved"][:5]:
+        print(f"      ! {problem}")
+    return 0 if not result["unresolved"] else 1
+
+
 def cmd_counts(args: argparse.Namespace) -> int:
     root = _root(args)
     for name, count in tables.counts(root).items():
@@ -103,6 +120,9 @@ def build_parser() -> argparse.ArgumentParser:
     query_cmd.add_argument("--method", default="global", choices=["global", "local", "drift", "basic"])
     query_cmd.add_argument("--text", default=None, help="default: the first thematic question")
     query_cmd.set_defaults(func=cmd_query)
+
+    citations_cmd = sub.add_parser("citations", help="resolve the last answer's [Data: …] markers")
+    citations_cmd.set_defaults(func=cmd_citations)
 
     counts_cmd = sub.add_parser("counts", help="row counts per output table")
     counts_cmd.set_defaults(func=cmd_counts)

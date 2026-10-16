@@ -26,21 +26,19 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
 
-from hyrag.parse.config import PARSED, REPO
+from hyrag import llm_log
+from hyrag.parse.config import REPO
 
 log = logging.getLogger("hyrag.serving")
 
 router = APIRouter()
-LOG_PATH = Path(os.environ.get("HYRAG_LLM_LOG", PARSED / "llm_proxy.jsonl"))
 DEFAULT_UPSTREAM = "https://api.deepseek.com"
-LOGGED_INPUT_CHARS = 0  # never log prompt text: it is corpus-derived and licence-bound
 
 
 def upstream_base() -> str:
@@ -60,7 +58,7 @@ def _record(payload: dict, *, status: int, stream: bool, rewritten: bool,
             usage: dict | None, latency_ms: int, row: str, error: str = "") -> None:
     usage = usage or {}
     entry = {
-        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "ts": llm_log.timestamp(),
         "row": row,
         "model": payload.get("model"),
         "stream": stream,
@@ -72,9 +70,7 @@ def _record(payload: dict, *, status: int, stream: bool, rewritten: bool,
         "latency_ms": latency_ms,
         "error": error[:300],
     }
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with LOG_PATH.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    llm_log.append(entry)  # never the prompt text: it is corpus-derived and licence-bound
 
 
 def _target() -> str:

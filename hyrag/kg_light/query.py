@@ -22,6 +22,7 @@ from pathlib import Path
 
 from lightrag import QueryParam
 
+from hyrag import llm_log
 from hyrag.kg_light import config
 
 _JSON = {"ensure_ascii": False, "sort_keys": True, "separators": (",", ":")}
@@ -32,9 +33,13 @@ async def ask(rag, question: str, *, mode: str | None = None) -> dict:
     mode = mode or config.QUERY_MODE
     param = QueryParam(mode=mode, stream=False)
 
+    # The row's own cost, read back from the proxy log around this call (§7.3 wants cost and
+    # latency per query per row, and this row's LLM calls now go through the proxy).
+    marker = llm_log.log_marker()
     started = time.perf_counter()
     result = await rag.aquery_llm(question, param)
     latency_ms = round((time.perf_counter() - started) * 1000)
+    usage = llm_log.usage_since(marker, row=config.LLM_ROW)
 
     data = (result or {}).get("data") or {}
     metadata = (result or {}).get("metadata") or {}
@@ -51,6 +56,7 @@ async def ask(rag, question: str, *, mode: str | None = None) -> dict:
         "mode": mode,
         "status": (result or {}).get("status"),
         "latency_ms": latency_ms,
+        "usage": usage,
         "answer": ((result or {}).get("llm_response") or {}).get("content") or "",
         "counts": {
             "entities": len(entities),

@@ -96,7 +96,12 @@ and recorded in `parsed/kg_graph/index_record.json`:
 | text units = our chunks | **369 stored · 369 matched by content · 0 problems** — D16 holds without asking GraphRAG to honour anything |
 | tables | 369 documents · **2,817 entities · 5,895 relationships · 644 communities · 644 community reports** |
 | tokens | **2,655 LLM calls · 4.37 M prompt + 1.57 M completion = 5,943,050 tokens · 0 errors** — and GraphRAG's own counters agree: 2,624 logical requests + 31 retries |
-| global search from native tables | 26,266-char answer, **276.5 s**, level 2, dynamic selection on, no LightRAG id in the path |
+| global search from native tables | **25,730-char answer · 344 s · 443 calls / 1,134,494 tokens**, level 2, dynamic selection on, no LightRAG id in the path |
+| citations resolve | **115 marker ids → 210 `file, §section, p. N–M` citations · 0 unresolved** · 2 truncated (`+more`) lists reported |
+
+*Two runs of the same thematic question (26,266 chars / 276.5 s, then 25,730 / 344 s) — the
+answer is synthesised per query, so length and latency vary; the counts above are from the run
+the gate closed on.*
 
 **The hierarchy** (Leiden, seed 42): levels 0–4 hold 26 / 166 / 350 / 100 / 2 communities — a
 genuine multi-level structure, which is what makes the level-2 query a hierarchical read
@@ -132,6 +137,16 @@ control non-optional.
    produced 369 "unmapped document" problems while the content join was perfect.
 3. **A check must compare against the root it checks** — the smoke root holds 8 chunks, not
    the corpus's 369. It now reads the root's own manifest.
+
+**Post-node (2026-10-16): the row's citations resolve, and the gate checks it.**
+R3 answers with `[Data: Reports (184, 527, …)]` — GraphRAG's human-readable ids, no filename and
+no page — so a string citation check would score this row at zero. `hyrag/kg_graph/resolve.py`
+walks `communities[human_readable_id] → text_unit_ids → textunit map → chunk_id → occurrences →
+`file, §section, p. N–M``, every hop a lookup rather than a match, and the query check **fails on
+an unresolved id** the way `kg-light` fails on an unmapped `source_id`. Verified: 115 marker ids
+→ 210 citations, 0 unresolved. One sentinel needed naming: GraphRAG truncates long reference
+lists with a literal `+more`, which is reported as `truncated_markers` (a reader should know the
+answer cites more evidence than it names) and is not treated as a missing id.
 
 **Two environment facts that outlive this node.**
 

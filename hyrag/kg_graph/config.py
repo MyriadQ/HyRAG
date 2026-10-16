@@ -45,6 +45,7 @@ EMBEDDING_BASE = os.environ.get("HYRAG_EMBEDDING_URL", "http://127.0.0.1:8001/v1
 # `json_schema` support and counts every call. GraphRAG's completion endpoint is therefore
 # local — and its tokens come from the API's own `usage` block, not from a guess.
 LLM_BASE = os.environ.get("HYRAG_LLM_BASE", EMBEDDING_BASE)
+LLM_ROW = "kg-graph"
 LLM_PROXY_LOG = PARSED / "llm_proxy.jsonl"
 EMBEDDING_DIM = 1024
 LLM_MODEL = "deepseek-flash"
