@@ -131,7 +131,7 @@ The second half is the one that matters for Phase 2 — a bijective map is the d
 vectors. Extraction: **2,347 LLM calls, 3.43 M tokens, 648.8 s** wall clock at concurrency 12.
 
 **The endpoint check R1 was owed**: all 369 chunks, through the module and through HTTP, are
-**exactly equal** (`max|Δ| 0.000e+00`) in both `float` and `base64` encodings — "all four rows
+**identical** (`max|Δ| 0.000e+00`) in both `float` and `base64` encodings — with the caveat the check now prints: a request whose shape differs from the reference's batching can differ by ~2e-07 (float32 rounding on MPS), and the tolerance is 1e-06 against a real-difference floor of 1e-03 — "all four rows
 share one encoder" is now a fact with a command behind it (`hyrag.serving.checks`).
 
 **What this row contributes to the report.**

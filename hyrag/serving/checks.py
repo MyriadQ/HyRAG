@@ -10,6 +10,16 @@ one encoder" is an intention, not a fact**: two services that both load bge-m3 c
 differ in pooling, normalisation or batch handling, and a difference here would surface as
 a retrieval number nobody could explain.
 
+**What "identical" means here, and why it is not always `max|Δ| == 0`.** The endpoint and the
+module run the same weights, pooling and normalisation, but on float32 accelerators a batch's
+numerics depend on its shape and the device's reduction order: the same text encoded in a batch
+of 2 and in a batch of 8 can differ in the 7th decimal (measured: 1.9e-07, on MPS). That is
+rounding, not a different encoder — a wrong pooling, a missing normalisation or a different
+max-length would move values by **1e-3 to 1e-1**, orders of magnitude away. So the check passes
+on `max|Δ| <= 1e-06` and always prints the exact-equality flag and the measured delta; the
+`--live` comparison (server running, same process, same batch shape) is the one that must be
+exactly zero, and is what proves the two paths agree when nothing else is in the way.
+
 **Why the reference is written first, in its own run.** The first version of this check did
 both halves at once and took tens of minutes for 369 chunks — two processes, two copies of
 bge-m3, one GPU. Sequencing them costs two commands and removes the contention *and* the
@@ -46,6 +56,7 @@ REFERENCE_META = PARSED / "embedding_reference.json"
 ENCODER_PATH = Path(__file__).resolve().parents[1] / "embedding" / "encoder.py"
 DEFAULT_URL = "http://127.0.0.1:8001/v1/embeddings"
 BATCH = 64  # requests in flight are serialised by the server anyway; this is round trips
+TOLERANCE = 1e-06  # float32 batch-shape noise; a real encoding difference is ≥ 1e-03
 
 
 def chunks(limit: int | None = None) -> list[str]:
@@ -134,11 +145,13 @@ def check(url: str = DEFAULT_URL, limit: int | None = None) -> int:
             continue
         delta = float(np.max(np.abs(array - reference)))
         exact = bool(np.array_equal(array, reference))
+        within_rounding = delta <= TOLERANCE
         print(
-            f"  {'✓' if exact else '✗'} {encoding_format:<6} {array.shape[0]}×{array.shape[1]}"
+            f"  {'✓' if within_rounding else '✗'} {encoding_format:<6} {array.shape[0]}×{array.shape[1]}"
             f" · dim {DIM} · max|Δ| {delta:.3e} · exact {exact}"
+            + ("" if exact else f" · within float32 rounding (≤ {TOLERANCE:.0e})")
         )
-        failures += 0 if exact else 1
+        failures += 0 if within_rounding else 1
 
     print(
         f"\n  {2 - failures}/2 paths identical to the in-process encoder"
