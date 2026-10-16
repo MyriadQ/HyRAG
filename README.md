@@ -228,7 +228,7 @@ Non-obvious constraints. Each has already cost time once, or is verified in the 
 - **Use `uv`, not conda.** `python3` on PATH is Anaconda's. Anaconda's `pg_config` is also on PATH — harmless for bottled installs, a hazard for source builds.
 - Storage: **Postgres via Homebrew + NetworkX for the graph** — no containers (D15). `pgvector` for the dense index; `tsvector` is Postgres core but currently has no consumer.
 - NetworkX requires the LightRAG server to run **single-worker** (`WORKERS=1`); multiple workers each hold their own graph and corrupt each other.
-- **Disk is tight: ≈17 GB free as of 2026-10-07** (the corpus is 0.45 GB). Models, indexes and now **two** graph indexes will dominate.
+- **Disk is the tightest constraint on this machine — recheck before every download.** *2026-10-16: **2.6 GB free**, the data volume at 99% (183/228 GB).* The repo is 3.1 GB (`.venv` 1.5 GB · `.venv-graphrag` 0.78 GB · corpus 0.45 GB · `parsed/` 0.33 GB), the HuggingFace cache 7.5 GB, uv's cache 4.9 GB, Postgres 0.4 GB. **Still to come:** the reranker for `fuse` (a bge-m3-class download, ~2.3 GB — unconfirmed, HuggingFace was unreachable when this was written) and the judge's dependencies. **Reclaimable:** `uv cache prune` (uv's 4.9 GB is mostly unpacked wheels no environment references), `parsed/kg_graph/cache` (194 MB, the price of a cheap re-index). Do not start a model download without clearing space first; a full disk fails as a confusing torch or Postgres error, not as an honest one.
 
 ---
 
