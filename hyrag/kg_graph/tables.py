@@ -104,10 +104,30 @@ def textunit_map(root: Path, limit: int | None = None) -> dict:
     }
 
 
-def metrics(root: Path) -> list[dict]:
-    """Every per-call metrics record GraphRAG's file writer produced (tokens, durations)."""
+def metrics(root: Path, *, since: str | None = None, until: str | None = None) -> list[dict]:
+    """GraphRAG's per-process metrics records, optionally limited to a time window.
+
+    They are written **one file per process**, named with the local start time
+    (`%Y%m%d_%H%M%S`), and a root keeps every process that ever ran in it — the index, then
+    each query. So a window is not optional when the numbers are attributed to a run: without
+    it the index's counters would silently include the queries that followed it.
+    """
+    from datetime import datetime
+
+    local = datetime.now().astimezone().tzinfo
+    start = datetime.fromisoformat(since).astimezone(local) if since else None
+    end = datetime.fromisoformat(until).astimezone(local) if until else None
+
     records: list[dict] = []
     for path in sorted((root / "metrics").glob("*.jsonl")):
+        try:
+            started = datetime.strptime(path.stem, "%Y%m%d_%H%M%S").replace(tzinfo=local)
+        except ValueError:
+            continue  # an unexpected name means we cannot attribute it; skipping is honest
+        if start and started < start:
+            continue
+        if end and started > end:
+            continue
         for line in path.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 records.append(json_loads(line))

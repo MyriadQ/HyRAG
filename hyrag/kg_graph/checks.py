@@ -14,8 +14,10 @@ Each check prints a number rather than a verdict:
 2. **text units ↔ chunks** — 369 in, 369 matched to our chunks **by content**, with the
    document-id join cross-checked against the input filenames. This is D16's evidence: not
    "we sent 369 files" but "what GraphRAG stored is our chunk set".
-3. **tokens** — per-call metrics from GraphRAG's own file writer, aggregated. The other half
-   of D1's ledger, beside `kg-light`'s 2,347 calls / 3.43 M tokens / 648.8 s.
+3. **tokens** — from the proxy log, windowed to the run recorded in the root's
+   `index_record.json`, with GraphRAG's own per-process counters beside it as a cross-check
+   (they count logical requests; the proxy counts attempts, and the retries explain the gap).
+   The other half of D1's ledger, beside `kg-light`'s 2,347 calls / 3.43 M tokens / 648.8 s.
 4. **a thematic query through its own CLI** — global search with dynamic community selection,
    answered from `community_reports` + the LanceDB vectors, with no LightRAG id anywhere.
 """
@@ -173,10 +175,17 @@ def first_thematic_question() -> str:
 # ---------------------------------------------------------------- the record
 
 
+def index_record_path(root: Path) -> Path:
+    return root / config.INDEX_RECORD_NAME
+
+
 def write_index_record(root: Path, *, wall_clock_s: float, exit_code: int,
-                       started_at: str | None = None) -> dict:
+                       started_at: str | None = None,
+                       finished_at_iso: str | None = None) -> dict:
+    finished_at_iso = finished_at_iso or _now()
     counts = tables.counts(root)
     tokens = check_tokens(root, since=started_at)[1]
+    cross_check = graphrag_metrics(root, since=started_at, until=finished_at_iso)
     record = {
         "type": "kg_graph_index",
         "graphrag_pin": config.GRAPHRAG_PIN,
@@ -186,21 +195,43 @@ def write_index_record(root: Path, *, wall_clock_s: float, exit_code: int,
         "embedding_base": config.EMBEDDING_BASE,
         "workspace": str(root),
         "started_at": started_at,
-        "finished_at": _now(),
+        "finished_at": finished_at_iso,
         "wall_clock_s": wall_clock_s,
         "exit_code": exit_code,
         "chunks_in": len(inputs.chunks()),
         "tables": counts,
         "tokens": tokens,
+        "cross_check": cross_check,
     }
-    config.INDEX_RECORD.write_text(json.dumps(record, **_JSON) + "\n", encoding="utf-8")
+    path = index_record_path(root)
+    path.write_text(json.dumps(record, **_JSON) + "\n", encoding="utf-8")
     return record
 
 
-def load_index_record() -> dict | None:
-    if not config.INDEX_RECORD.is_file():
+def load_index_record(root: Path) -> dict | None:
+    path = index_record_path(root)
+    if not path.is_file():
         return None
-    return json.loads(config.INDEX_RECORD.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def graphrag_metrics(root: Path, *, since: str | None = None, until: str | None = None) -> dict:
+    """GraphRAG's own per-process counters, as an independent cross-check on the proxy log.
+
+    The two count different things, and the difference is the interesting part: the proxy logs
+    **every attempt**, GraphRAG's `attempted_request_count` counts **logical requests** with
+    `retries` beside it. On the 2026-10-16 corpus run that was 2,653 attempts against 2,624
+    requests + 31 retries, and the extra attempts are why the proxy's token total sits ~3%
+    above the metrics' — two honest numbers, neither a substitute for the other.
+    """
+    totals: dict[str, float] = {}
+    for record in tables.metrics(root, since=since, until=until):
+        for key, value in (record.get("metrics") or {}).items():
+            if isinstance(value, (int, float)):
+                totals[key] = totals.get(key, 0) + float(value)
+    keep = ("attempted_request_count", "failed_response_count", "retries",
+            "prompt_tokens", "completion_tokens", "total_tokens")
+    return {key: int(totals.get(key, 0)) for key in keep}
 
 
 # ---------------------------------------------------------------- the gate
@@ -213,12 +244,17 @@ def run_gate(root: Path, *, skip_query: bool = False) -> int:
     # The gate reports the *index's* tokens: the window is the run recorded in
     # `kg_graph_index.json`, not everything the proxy has ever seen (which includes the smoke
     # root and every query since).
-    record = load_index_record()
+    record = load_index_record(root)
     window = (record or {}).get("started_at"), (record or {}).get("finished_at")
     tokens_ok, _totals = check_tokens(root, since=window[0], until=window[1])
     if record and record.get("wall_clock_s"):
         print(f"  · index: exit {record['exit_code']} · {record['wall_clock_s']}s wall clock · "
               f"tables {record['tables']}")
+    if record and record.get("cross_check"):
+        check = record["cross_check"]
+        print(f"  · graphrag's own counters: {check['attempted_request_count']:,} requests · "
+              f"{check['retries']:,} retries · {check['total_tokens']:,} tokens (logical requests, "
+              f"so below the proxy's attempt count)")
     query_ok = True
     if not skip_query:
         query_ok, _record = check_query(root)

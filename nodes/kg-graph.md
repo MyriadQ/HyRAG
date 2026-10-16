@@ -22,7 +22,7 @@ Its second job is the ablation's native side. Phase 2 does not run GraphRAG nati
 ## Contract
 
 - **Native means native.** GraphRAG's own extraction prompts, its own entity/relation schema, its own clustering, its own reports. The only custom step is the input: our chunks arrive as 369 one-chunk text files, so D16 holds without asking GraphRAG to honour anything.
-- **The config is an artifact.** The settings that ran are versioned in `hyrag/kg_graph/settings.yaml` and copied into the root at index time; the run's numbers go in `parsed/kg_graph_index.json`, beside the settings' hash.
+- **The config is an artifact.** The settings that ran are versioned in `hyrag/kg_graph/settings.yaml` and copied into the root at index time; the run's numbers go in `parsed/kg_graph/index_record.json`, beside the settings' hash.
 - **One completion model per job, mirroring `kg-light`'s roles**: extraction and community reports run with DeepSeek's **thinking disabled** (structured output must not start with a reasoning trace), the query role keeps it **on**. Two model ids in one settings file.
 - **Everything GraphRAG writes is its own** — no BYOG tables, no LightRAG ids. The bridge is Phase 2's business; this node must not touch it (D4).
 - **`graphrag==3.3.0`, in its own environment.** It cannot share an environment with `docling` (they require disjoint `typer` ranges), so it lives in `.venv-graphrag` and is driven by **its own CLI**, which is also what the gate asks about. The pin is recorded in `envs/graphrag/requirements.txt`.
@@ -43,7 +43,7 @@ Its second job is the ablation's native side. Phase 2 does not run GraphRAG nati
 
 1. **Exact chunks** — yes: 369 text units, matched to our chunks **by content**, filename join cross-checked, 0 problems.
 2. **The id map** — `text_units.document_id` (singular) → `documents.title` (our `<sha256>.txt`) → `chunk_id`; written to `parsed/kg_graph_textunit_map.json`.
-3. **Cost** — 2,653 calls · 5.94 M tokens · 1,527.2 s. The other half of D1's ledger, beside R2's 2,347 calls / 3.43 M / 648.8 s.
+3. **Cost** — 2,655 calls · 5.94 M tokens · 1,527.2 s (cross-checked against GraphRAG's own counters, which agree once retries are counted). The other half of D1's ledger, beside R2's 2,347 calls / 3.43 M / 648.8 s.
 4. **Which search** — `global`, level 2, dynamic selection on (settled by §7.4's need for the same search over both indexes).
 5. **Communities** — 644 across five levels (26 / 166 / 350 / 100 / 2); Phase 2's bridged layer should land in the same order of magnitude, and a 5× gap is a finding.
 
@@ -88,14 +88,14 @@ Its second job is the ablation's native side. Phase 2 does not run GraphRAG nati
 ## Discoveries
 
 **Gate: green, 2026-10-16.** All numbers printed by `uv run python -m hyrag.kg_graph.cli check`
-and recorded in `parsed/kg_graph_index.json`:
+and recorded in `parsed/kg_graph/index_record.json`:
 
 | check | result |
 |---|---|
 | its own CLI completes | `graphrag index` **exit 0 · 1,527.2 s (25.5 min)** |
 | text units = our chunks | **369 stored · 369 matched by content · 0 problems** — D16 holds without asking GraphRAG to honour anything |
 | tables | 369 documents · **2,817 entities · 5,895 relationships · 644 communities · 644 community reports** |
-| tokens | **2,653 LLM calls · 4.37 M prompt + 1.57 M completion = 5,942,969 tokens · 0 errors** |
+| tokens | **2,655 LLM calls · 4.37 M prompt + 1.57 M completion = 5,943,050 tokens · 0 errors** — and GraphRAG's own counters agree: 2,624 logical requests + 31 retries |
 | global search from native tables | 26,266-char answer, **276.5 s**, level 2, dynamic selection on, no LightRAG id in the path |
 
 **The hierarchy** (Leiden, seed 42): levels 0–4 hold 26 / 166 / 350 / 100 / 2 communities — a
@@ -147,4 +147,4 @@ control non-optional.
 ## Session log
 
 - 2026-10-16 — page opened; environment conflict resolved (GraphRAG and `docling` require disjoint `typer` ranges → its own venv, driven by its CLI); `graphrag init` template read, config schema inspected (`ModelConfig.call_args` carries the thinking switch; `vector_store.vector_size` is the dimension contract, `cluster_graph.seed` the reproducibility knob).
-- 2026-10-16 — **closed, gate green.** Smoke-first found the `json_schema` failure (repaired in our own `/v1/chat/completions` proxy), a wrong column name, and a check bound to the wrong corpus size. Full run: exit 0 · 25.5 min · 2,653 calls · 5.94 M tokens → 2,817 entities / 5,895 relations / 644 communities / 644 reports, 369 text units matched by content, one thematic global query answered in 26 k characters.
+- 2026-10-16 — **closed, gate green.** Smoke-first found the `json_schema` failure (repaired in our own `/v1/chat/completions` proxy), a wrong column name, and a check bound to the wrong corpus size. Full run: exit 0 · 25.5 min · 2,655 calls · 5.94 M tokens → 2,817 entities / 5,895 relations / 644 communities / 644 reports, 369 text units matched by content, one thematic global query answered in 26 k characters.

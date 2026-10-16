@@ -56,7 +56,7 @@ def cmd_index(args: argparse.Namespace) -> int:
                                        started_at=started_at)
     print(f"  tables   {record['tables']}")
     print(f"  tokens   {record['tokens']}")
-    print(f"  wrote    {config.INDEX_RECORD}")
+    print(f"  wrote    {checks.index_record_path(root)}")
     return exit_code
 
 
@@ -74,7 +74,7 @@ def cmd_counts(args: argparse.Namespace) -> int:
     root = _root(args)
     for name, count in tables.counts(root).items():
         print(f"    {name}: {count:,}")
-    record = checks.load_index_record()
+    record = checks.load_index_record(root)
     if record:
         print(f"  last index: {record['finished_at']} · {record['wall_clock_s']}s · tokens {record['tokens']}")
     return 0

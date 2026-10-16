@@ -26,7 +26,8 @@ GRAPH_ROOT = PARSED / "kg_graph"  # the real root (gitignored, regenerable)
 SMOKE_ROOT = PARSED / "kg_graph_smoke"  # ~8 chunks, for validating the config
 SETTINGS_PATH = Path(__file__).with_name("settings.yaml")  # versioned (§7.5)
 PROMPTS_DIR = Path(__file__).with_name("prompts")  # the shipped prompts, versioned too
-INDEX_RECORD = PARSED / "kg_graph_index.json"
+INDEX_RECORD_NAME = "index_record.json"  # inside the root, so a smoke run cannot
+                                         # overwrite the corpus run's numbers
 TEXTUNIT_MAP = PARSED / "kg_graph_textunit_map.json"
 QUERY_LOG = REPO / "results" / "kg_graph_queries.jsonl"
 
