@@ -1,6 +1,6 @@
 # router — one turn plus history, in; one strategy class, out
 
-**~7.5 h** · **feeds** `arms` · **Phase 2's second box** · **gate** at the bottom · **status** 🔵 **current — opened 2026-10-17**
+**~7.5 h** · **feeds** `arms` · **Phase 2's second box** · **gate** at the bottom · **status** 🟢 **closed 2026-10-17 — gate GREEN**
 
 > **How to use this page.** The brief for the next agent, not a design to be taken on faith. §*What the benchmark says* is measured and lives in `results/class_strategy.json` — read it, do not re-derive it. §*Open questions* is what the implementer decides, and one of them (the held-out set) is a decision only the owner of the project can make. Nothing in `Discoveries` exists yet.
 
@@ -34,6 +34,21 @@ The router never sees a retrieval score. That is the whole point of D5: a LightR
 - **The held-out set is frozen in git before the classifier's prompt is written.** The `qset` is frozen at `2c5de79` for exactly this reason and the same logic applies to the router's own eval: a split decided after the prompt is a split fitted to the prompt.
 - **Every call goes through the local proxy** (`hyrag/serving/llm.py`, row tag `router`) so the router's cost lands in `parsed/llm_proxy.jsonl` with everything else's, and `thinking` is disabled for the JSON-emitting call.
 
+## Locked 2026-10-17 — the budget the table is chosen under
+
+The project owner's call, and it decides the table before any code is written:
+
+| decision | value | why |
+|---|---|---|
+| **held-out split** | option (a): the frozen 150 split **120 dev / 30 eval**, 10 eval per class, by `select.systematic`'s own stride rule | zero drafting run, zero answer generation — eval questions are *classified*, not answered (~$0.003 for the lot) |
+| **cost envelope for a turn** | **≤ 60 s · ≤ $0.02** | excludes the benchmark's thematic winner by construction (357.8 s · $0.380 native, ~500 s · ~$0.55 bridged) |
+| **thematic route** | **`kg-light` `global`** (51.3 s · $0.0094) | the only arm that fits the envelope; R4's thematic cell therefore costs **$0.19** for 20 answers, or $0 if the delivered row reuses R2's recorded answers. The benchmark's 90% pairwise winner is **not shipped** — that is the finding, stated in the table and in the report |
+| **multi-hop route** | both arms, `fuse` on | the roadmap's design; the bridged arm at ~$0.004/query is affordable here |
+| **factoid route** | `kg-light` local (4.2 s · $0.0047) | pointwise best and inside the envelope; kg-graph buys 76% pairwise at 27.4 s |
+| **§7.4 ablation** | **5 bridged thematic questions**, native answers reused | ~$2.75 instead of ~$11; native side already on disk and free |
+
+**Remaining Phase 2 spend ≈ $5–7**, of which the R4 judged pass is $1.5–3 and the ablation sample $2.75. The index compute is finished and is not paid again.
+
 ## What the benchmark says — measured, `results/class_strategy.json`
 
 This is the input the table is read from. Pairwise (blind, masked, the papers' rubric) versus pointwise, with cost and latency per query:
@@ -59,10 +74,7 @@ Phase 2's arms are LightRAG and the **bridged** GraphRAG (no naive arm, no nativ
 
 ## Open questions — settle before writing the classifier
 
-1. **What is the held-out set, and where does it come from?** The gate needs a number on data the prompt was not written against. Three options, with their real prices:
-   - **(a) Split the frozen 150** — e.g. 100 dev / 50 eval, stratified and frozen in code before the prompt is written. Costs nothing, is re-derivable from the committed set, and the *benchmark* numbers are untouched (they are already computed). The cost is conceptual: the qset is the project's test set, and reusing part of it for router development weakens the "frozen before the router" claim unless the split is committed first and the eval half is never looked at.
-   - **(b) Draft new questions from the same corpus** with the qset's own drafter (`qset/drafts.jsonl` has 580 candidates, 186 shortlisted, 150 kept) and label 45–60 by hand, 15–20 per class. A genuinely independent sample, comparable by construction; costs a drafting run and a labelling pass.
-   - **(c) Have the judge label them** (`PREPLAN.md` §2.3 note: *"the judge may double as the router's labeller — optional but cheap"*). Cheapest in time, and the most circular: a classifier and a labeller from the same model family measure agreement with DeepSeek, not with the class definitions.
+1. ~~**What is the held-out set, and where does it come from?**~~ — **settled 2026-10-17: option (a), a 120/30 split of the frozen set**, 10 eval per class by the same stride rule `hyrag.qset.select` uses, derived in code from the frozen file and **frozen before the classifier's prompt is written**. The other options and why they were not taken: drafting new questions is a run plus a labelling pass (no money saved where the money is); judge-labelling measures agreement with DeepSeek rather than with the class definitions.
 2. **Classifier mechanics and the latency budget.** A rule pass (interrogative shape, "why did…", "across both manufacturers") is free and instant; an LLM call is ~1–2 s and ~$0.0001. The router sits on **every** turn, and the factoid route's whole answer costs 2.2 s — a 2 s router triples it. Is the rule pass the fast path with the LLM as fallback, or is every turn an LLM call? Whichever it is, it goes in the record and the table.
 3. **Ambiguity policy.** A question can be genuinely two classes (*"what recurring shortfalls explain the NTSB's recommendation?"*). Which class wins, and is the rule stated per pair (factoid→multi-hop, multi-hop→thematic)? The fallback must be deterministic and in the table, not in a model's confidence field.
 4. **Condense scope.** How much history does it see — the last N turns, or the whole conversation? What does it do when the turn is self-contained (pass through unchanged, or rewrite anyway and risk drift)? Is it one LLM call, and does it smoke-test against the three-turn script below before the classifier is built?
@@ -72,8 +84,8 @@ Phase 2's arms are LightRAG and the **bridged** GraphRAG (no naive arm, no nativ
 ## Cost and time — measured where it can be, estimated where it cannot
 
 - **The index compute is done and is not paid again.** `bridge` ($1.00) and both Phase 1 indexes exist on disk; nothing in this node rebuilds them.
-- **Router calls are cheap**: ~600 prompt + ~20 completion tokens per classification ≈ **$0.0001**; 150 questions × 2 (dev + eval) plus a handful of condense turns ≈ **$0.05**, minutes of wall clock. *Estimate, not measurement — confirm on the first ten calls with a proxy window.*
-- **The rest of Phase 2 is not free**, and saying so here keeps this page honest: `arms` regenerates answers (R2's 150 cost **$0.97**, R3's 120 cost **$8.44**), the judge's R4 addendum is a judged pass (the table was **$1.58**), and `fuse` needs a cross-encoder download (~2.3 GB — **7.7 GB free**, recheck before starting). The remaining boxes are cheap in *indexing* money, not in *generation* money.
+- **Router calls are cheap**: ~1.5 k prompt (definitions + six dev examples) + ~20 completion tokens per classification ≈ **$0.0002**; 150 questions × 2 (dev + eval) plus a handful of condense turns ≈ **$0.05**, minutes of wall clock. *Estimate — confirm on the first ten calls with a proxy window.*
+- **The rest of Phase 2 is not free**, and saying so here keeps this page honest: `arms` regenerates answers (R2's 150 cost **$0.97**), the judge's R4 addendum is a judged pass (the table was **$1.58**), and `fuse` needs a cross-encoder download (~2.3 GB — **7.7 GB free**, recheck before starting). Under the locked budget the whole remainder is **≈ $5–7**: the R4 judged pass $1.5–3, the 5-question ablation sample ~$2.75, everything else cents. The remaining boxes are cheap in *indexing* money, not in *generation* money.
 - Time: the roadmap prices this node at **7.5 h**; the engineering is the cost, as it was for the judge.
 
 ## Inherited landmines — read the entry before touching the area
@@ -97,6 +109,8 @@ Concretely, one command should print:
 3. **the 3-turn condense test** — a scripted dialogue whose turns 2 and 3 are elliptical, printing each turn's `condensed_query`, label and strategy, and asserting three things: the entity from turn 1 survives, the attribute survives, and the label is the intended one. One turn must change class (factoid → multi-hop or thematic), or the test proves only that the router can repeat itself;
 4. **the table that was used**, with the budget it was chosen under, and the fallback rule with the count of times it fired.
 
+**The floors this node adopts** (a choice, recorded in `config.py`): overall accuracy ≥ 0.80 and no class below 0.60, on a balanced set where chance is 0.33. Without a floor, "accuracy stated as a number" gates green at chance.
+
 A gate that prints "accuracy 0.87" without the split, the prompt sha and the table is not a gate — the number is unverifiable and the table is unreproducible.
 
 ## Decisions already locked
@@ -114,8 +128,19 @@ A gate that prints "accuracy 0.87" without the split, the prompt sha and the tab
 
 ## Discoveries
 
-*(Empty — to be filled when the gate closes.)*
+**The gate, green, with its numbers.** `uv run python -m hyrag.router.cli check` — 30 held-out questions (10 per class, split frozen by rule before the prompt was written), **overall 0.867**: factoid **1.00** · thematic **1.00** · multi-hop **0.60**; 0 fallbacks, 30 calls, 11,981 prompt + 210 completion tokens, **873 ms per query**, ≈ **$0.002** for the evaluation (13,883 tokens for the whole `check`, the dialogue included). The 3-turn condense test passed every assertion on the first run, and a second `check` reproduced both the matrix and the dialogue (temperature 0, same prompt sha `5ed25370534b`).
+
+**Multi-hop is the boundary, and it is systematic, not sampling noise.** Four eval misses — `mult-065`, `070`, `080`, `095` — all predicted factoid, and the **dev half shows the same rate: 0.62 (15 of 40 misrouted)**. Reading them explains why: they are labelled multi-hop because *answering* them requires connecting evidence from two places, but their surface is a single-fact lookup (*"Which NTSB chairman accompanied the investigative team…"*, *"What does selecting the PA reception knob… cause the CVR to record?"*). **The class is a property of the answer path, not of the question's text**, and D5 forbids the router from seeing the retrieval that would distinguish them — so a text-only classifier has a ceiling here that a better prompt will not lift much. The consequence is bounded: a multi-hop → factoid miss drops **fusion**, not the arm, because kg-light is the pointwise-best row on multi-hop anyway (0.870).
+
+**The prompt was written once and never tuned on the eval misses.** The dev run came after the first eval run, and it was used as evidence about whether the 0.60 was an accident, not as a tuning set; the prompt sha is identical across every run recorded here. That is what makes 0.867 a held-out number rather than a fitted one.
+
+**The table ships a deliberate loss, and that is the router's real decision.** `kg-graph` wins the thematic class 90% pairwise and costs **357.8 s and $0.380** per query natively (~500 s / ~$0.55 bridged, 932 reports instead of 644) against kg-light's **51.3 s / $0.0094**. The envelope is **≤ 60 s / ≤ $0.02**, so the shipped thematic route is kg-light and the benchmark's winner is not deployed. R4's thematic cell therefore costs $0.19 for 20 answers, or $0 if the delivered row reuses R2's recorded ones — and the report states the price of the choice instead of hiding it in a setting.
+
+**The condense test is the dialogue `PREPLAN.md` §2.3 described, and it works.** Turn 2's *"What about the 737?"* becomes *"What's the maximum operating altitude of the 737?"* — entity restored, attribute carried from turn 1 — and turn 3 re-routes to `thematic` rather than repeating the class. Both are string-checked, so the gate does not depend on the judge it is measuring.
+
+**Factoid routing is the one row that does not follow the pairwise winner.** kg-graph wins factoid 76% pairwise — but that is R3's *native* row, and the delivered system runs the **bridged** index, which has no per-class measurement yet (§7.4's ablation is thematic and sampled at five questions). Routing factoid to it would be routing on a proxy, so the table routes to kg-light (pointwise best, hit rate 1.0) until the ablation measures the bridged arm.
 
 ## Session log
 
+- 2026-10-17 — **built and closed.** `hyrag/router/{config,model,condense,classify,strategy,bench,cli}.py`; split frozen 120/30 before the prompt; gate green at 0.867 overall (multi-hop 0.60, and 0.62 on dev — the finding above). The budget decision (≤ 60 s / ≤ $0.02, thematic routed to kg-light, ablation sampled at five) was taken by the project owner before any code was written, and is recorded in `strategy.py` beside the table it constrains. Whole node spend ≈ **$0.02** (dev 120 + eval 30 + two checks).
 - 2026-10-17 — page opened. The measured table (`results/class_strategy.json`), the frozen set's class labels and the condense example pinned above; the node's first decision is the held-out set, and it is the owner's, not the implementer's.
