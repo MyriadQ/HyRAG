@@ -8,8 +8,8 @@
    "R2": 0.1267,
    "R3": 0.76
   },
-  "pointwise_best": "kg-light",
-  "pointwise_best_mean": 0.8033,
+  "pointwise_best": "delivered",
+  "pointwise_best_mean": 0.9118,
   "arms": {
    "baseline": {
     "rubric_mean": 0.7945,
@@ -31,6 +31,13 @@
     "latency_s_per_query": 27.4,
     "pairwise_share_3way": 0.76,
     "retrieval_hit_rate": 0.84
+   },
+   "delivered": {
+    "rubric_mean": 0.9118,
+    "cost_usd_per_query": 0.005305,
+    "latency_s_per_query": 4.9,
+    "pairwise_share_3way": null,
+    "retrieval_hit_rate": 0.96
    }
   },
   "n": 50,
@@ -69,6 +76,13 @@
     "latency_s_per_query": 40.7,
     "pairwise_share_3way": 0.6533,
     "retrieval_hit_rate": 0.92
+   },
+   "delivered": {
+    "rubric_mean": 0.8311,
+    "cost_usd_per_query": 0.008874,
+    "latency_s_per_query": 30.6,
+    "pairwise_share_3way": null,
+    "retrieval_hit_rate": 0.98
    }
   },
   "n": 50,
@@ -107,6 +121,13 @@
     "latency_s_per_query": 357.8,
     "pairwise_share_3way": 0.9,
     "retrieval_hit_rate": 1.0
+   },
+   "delivered": {
+    "rubric_mean": 0.8178,
+    "cost_usd_per_query": 0.010606,
+    "latency_s_per_query": 41.8,
+    "pairwise_share_3way": null,
+    "retrieval_hit_rate": 0.25
    }
   },
   "n": 20,

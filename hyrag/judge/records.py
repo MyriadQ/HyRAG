@@ -132,7 +132,40 @@ def _load_r3(record: dict) -> AnswerRecord:
     )
 
 
-LOADERS = {"R1": _load_r1, "R2": _load_r2, "R3": _load_r3}
+def _load_r4(record: dict) -> AnswerRecord:
+    """The delivered row: one answer, one generation call, the arms behind it.
+
+    Its token and latency figures are the **whole turn** — the arms that retrieved plus the
+    generation that wrote — because that is what the other rows' figures are (their retrieval
+    and generation happen inside one call). Citations are the ones the answer used; the
+    evidence is what was handed to it.
+    """
+    usage = record.get("usage") or {}
+    arms = record.get("arms") or {}
+    tokens_in = int(usage.get("prompt_tokens") or 0) + sum(int(a.get("tokens_in") or 0) for a in arms.values())
+    tokens_out = int(usage.get("completion_tokens") or 0) + sum(int(a.get("tokens_out") or 0) for a in arms.values())
+    calls = 1 + sum(int(a.get("calls") or 0) for a in arms.values())
+    latency_ms = int(record.get("latency_ms") or 0) + sum(int(a.get("latency_ms") or 0) for a in arms.values())
+    used = list(record.get("citations_used") or [])
+    unknown = list(record.get("unknown_sources") or [])
+    return AnswerRecord(
+        row="R4", label="delivered",
+        question_id=record["question_id"], question_class=record["question_class"],
+        answer=record.get("answer") or "",
+        latency_ms=latency_ms,
+        tokens_in=tokens_in, tokens_out=tokens_out, calls=calls,
+        citations_canonical=tuple(used),
+        citation_unit=config.ROWS["R4"]["citation_unit"],
+        refs_asserted=len(used) + len(unknown),
+        refs_resolved=len(used),
+        unresolved=tuple({"kind": "source", "id": name, "reason": "cited but not in the evidence"}
+                         for name in unknown),
+        evidence_chunk_ids=tuple(entry["chunk_id"] for entry in (record.get("evidence") or [])),
+        raw=record,
+    )
+
+
+LOADERS = {"R1": _load_r1, "R2": _load_r2, "R3": _load_r3, "R4": _load_r4}
 
 
 def load_row(row: str, path: Path | None = None) -> dict[str, AnswerRecord]:

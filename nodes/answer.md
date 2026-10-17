@@ -66,6 +66,24 @@ Likely suspects: the model paraphrasing a citation (hand the exact strings in th
 
 ## Discoveries
 
+**R4 is judged, 2026-10-17** (`sessions/S17-r4.md`). The delivered row answered the judge's 120
+questions for **$0.92** and was scored on the same rubric and protocol as the other three
+(+$1.16 of judging). `results/results.csv`:
+
+| class | rubric | accuracy | $/query | s/query | evidence hit | citations |
+|---|---|---|---|---|---|---|
+| factoid | **0.9118** — best of the four rows | 0.980 | $0.0053 | 4.9 | 0.96 | 1.54 |
+| multi-hop | 0.8311 | 0.895 | $0.0089 | 30.6 | 0.98 | 2.44 |
+| thematic | **0.8178** — worst | — | $0.0106 | 41.8 | **0.25** | 6.25 |
+
+Head-to-head: beats the baseline 72% / 64% / 10%, beats LightRAG 66% and ties it on multi-hop,
+loses to GraphRAG 36% / 36% / 5%. **The thematic cell is the finding**: the answer is generated
+over the top **12** retrieved chunks (`EVIDENCE_BUDGET`), so on 3 of 20 questions the evidence
+target sits below the cut — hit 0.25 against LightRAG's 0.40 on the same questions — and the
+answer is 40% shorter than LightRAG's, which a coverage rubric punishes twice. The knob is one
+number in `gather.py`; changing it trades cost against coverage, and the report says so.
+
+
 **The gate, green — three traced examples, every citation checked against the PDF.**
 
 | class | route | evidence | citations used | invented | PDF coverage | cost |
@@ -74,7 +92,7 @@ Likely suspects: the model paraphrasing a citation (hand the exact strings in th
 | mult-051 | kg-light + bridged + fuse | 8 | 2 | 0 | **1.00** | $0.0068 |
 | them-101 | kg-light | 12 | 3 | 0 | **1.00** | $0.0100 |
 
-**R4's row, 30 held-out questions, gold-class routes** (`results/answer_eval_record.json`): factoid **hit 1.00** · 1.7 citations · 5.9 s · $0.0054; multi-hop **1.00** · 2.8 · 24.4 s · $0.0090; thematic **0.40** · 6.5 · 34.9 s · $0.0098. **0 invented citations across 30 answers, 0 refusals**, $0.24 for the run. The thematic cell is LightRAG's own 0.40 — the delivered system inherits its retrieval, not a better one.
+**The router's 30-question split** (the answer node's own eval, distinct from the 120-question judged coverage above) (`results/answer_eval_record.json`): factoid **hit 1.00** · 1.7 citations · 5.9 s · $0.0054; multi-hop **1.00** · 2.8 · 24.4 s · $0.0090; thematic **0.40** · 6.5 · 34.9 s · $0.0098. **0 invented citations across 30 answers, 0 refusals**, $0.24 for the run. The thematic cell is LightRAG's own 0.40 — the delivered system inherits its retrieval, not a better one.
 
 **`page_range` is a range, not two pages.** The first PDF check passed only the endpoints of `[8, 11]` and scored a *correct* citation at **0.50**; expanding to pages 8–10 gave **1.00**. The chunker's own spot check never had the bug because it uses block page numbers, not the occurrence's range — a reminder that a second caller of a verifier can misuse it even when the verifier is right.
 
@@ -84,5 +102,6 @@ Likely suspects: the model paraphrasing a citation (hand the exact strings in th
 
 ## Session log
 
+- 2026-10-17 — **R4 judged** (`sessions/S17-r4.md`): 120 answers, $0.92, 0 invented citations; pointwise best on factoid, worst on thematic (12-chunk budget).
 - 2026-10-17 — **built and closed.** `hyrag/answer/{gather,render,pipeline,checks,cli}.py`; gate green (PDF coverage 1.00 on every used citation), R4 evaluated on 30 held-out questions (0 invented citations, 0 refusals, $0.24). `sessions/S14-answer.md`.
 - 2026-10-17 — page opened.

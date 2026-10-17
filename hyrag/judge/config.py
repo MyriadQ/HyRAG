@@ -66,8 +66,12 @@ ROWS = {
            "citation_unit": "file", "row_tag": "kg-light"},
     "R3": {"label": "kg-graph", "answers": RESULTS / "kg_graph_answers.jsonl",
            "citation_unit": "file, §section, p. N–M", "row_tag": "kg-graph"},
+    # The delivered hybrid, added 2026-10-17 as Phase 2's addendum. Its answers come from
+    # `hyrag.answer.cli eval --coverage judge` over the same 120 questions the table covers.
+    "R4": {"label": "delivered", "answers": RESULTS / "answer_judge.jsonl",
+           "citation_unit": "file, §section, p. N–M", "row_tag": "answer"},
 }
-ROW_ORDER = ("R1", "R2", "R3")
+ROW_ORDER = ("R1", "R2", "R3", "R4")
 
 # ---------------------------------------------------------------- the run's shape
 

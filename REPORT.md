@@ -79,14 +79,30 @@ LightRAG's graph (4,525 entities · 6,835 relations)
 | `fuse` | RRF by rank (`k=60`), then a cross-encoder over a 20-chunk shortlist | both arms in every fused top-10 · reranker moves **14–18/20** positions · **$0.022** | `results/fuse_gate.jsonl`, `sessions/S13-fuse.md` |
 | `answer` | one generation over the routed evidence, citations verbatim | **30 held-out questions · 0 invented citations · 0 refusals** · gate **$0.02** | `results/answer_eval.jsonl`, `sessions/S14-answer.md` |
 
-**The delivered row (R4), measured on the router's 30 held-out questions, gold-class routes.**
-Source: `results/answer_eval_record.json`.
+**The delivered row (R4), judged on the same 120 questions as the other rows.**
+Source: `results/results.csv`, `results/head_to_head.csv`, `results/answer_judge_record.json`.
 
-| class | n | evidence-target hit | citations / answer | refusals | end-to-end latency | $/query |
-|---|---|---|---|---|---|---|
-| factoid | 10 | **1.00** | 1.7 | 0 | 5.9 s | $0.0054 |
-| multi-hop | 10 | **1.00** | 2.8 | 0 | 24.4 s | $0.0090 |
-| thematic | 10 | 0.40 | 6.5 | 0 | 34.9 s | $0.0098 |
+| class | n | rubric mean | accuracy | $/query | s/query | evidence hit | citations |
+|---|---|---|---|---|---|---|---|
+| factoid | 50 | **0.9118** | 0.980 | $0.0053 | 4.9 | 0.96 | 1.54 |
+| multi-hop | 50 | 0.8311 | 0.895 | $0.0089 | 30.6 | 0.98 | 2.44 |
+| thematic | 20 | 0.8178 | — | $0.0106 | 41.8 | **0.25** | 6.25 |
+
+**Against the three Phase 1 rows, blind and paired** (`results/head_to_head.csv`):
+
+| pair | factoid | multi-hop | thematic |
+|---|---|---|---|
+| R4 vs R1 (baseline) | **72%** | **64%** | 10% |
+| R4 vs R2 (kg-light) | **66%** | 50% (tie) | 0% |
+| R4 vs R3 (kg-graph) | 36% | 36% | 5% |
+
+The delivered system is the **pointwise best on factoid** of all four rows, ties kg-light on
+multi-hop head-to-head, and **loses the thematic class to every row — including the baseline**.
+Its thematic evidence hit is 0.25 against LightRAG's 0.40 on the same 20 questions, because the
+delivered answer is generated over the **top 12** retrieved chunks and the evidence target sits
+below the cut for three of them. Shorter answers then lose a coverage rubric twice over
+(3,573 characters against LightRAG's 6,021). Source: `results/results.csv`,
+`results/answer_judge_record.json`, `results/head_to_head.csv`.
 
 **§7.4 — native vs bridged index, five thematic questions, same search settings, native answers
 reused.** Source: `results/ablation_record.json`.
@@ -109,17 +125,17 @@ the API's own `usage`. Source: `parsed/llm_proxy.jsonl`, billed at DeepSeek's of
 
 | row | calls | prompt tokens | completion | USD |
 |---|---|---|---|---|
-| `kg-graph` | 13,915 | 26.5 M | 11.7 M | **$9.49** |
-| `kg-graph-bridge` | 5,498 | 11.4 M | 3.8 M | **$3.22** |
-| `judge` | 8,852 | 10.1 M | 1.0 M | **$1.62** |
-| `kg-light` | 396 | 5.8 M | 0.6 M | **$1.20** |
-| `answer` | 40 | 0.3 M | 0.0 M | **$0.05** |
-| `router` | 228 | 0.1 M | 0.0 M | **$0.01** |
-| **total** | **28,931** | **54.2 M** | **17.2 M** | **$15.58** |
+| `kg-graph` (R3 index + answers + queries) | 13,915 | 26.5 M | 11.7 M | **$9.49** |
+| `kg-graph-bridge` (bridge index + arms + ablation) | 5,575 | 12.3 M | 3.9 M | **$3.36** |
+| `kg-light` (R2 answers, R4 retrieval, queries) | 832 | 12.2 M | 1.0 M | **$2.32** |
+| `judge` (Phase 1 + R4) | 12,392 | 13.2 M | 1.5 M | **$2.23** |
+| `answer` (R4 generations) | 257 | 1.5 M | 0.1 M | **$0.25** |
+| `router` | 228 | 0.1 M | 0.0 M | $0.01 |
+| **total** | **33,201** | **65.9 M** | **18.2 M** | **$17.66** |
 
 - **Two passes predate the proxy** and are priced from their own records: R2's extraction
   (2,347 calls · 3.43 M tokens · 648.8 s, `parsed/kg_light_extraction.json`) ≈ **$0.89**, and
-  R1's 150 answers (the per-query costs in §2 × 120 questions) ≈ **$0.38** → **≈ $16.85 all-in**
+  R1's 150 answers (the per-query costs in §2 × 120 questions) ≈ **$0.38** → **≈ $18.93 all-in**
   for the project.
 - **Per-query costs** are in the Phase 1 table above; the delivered system's are in its row.
 - **Index builds**: R2 extraction 648.8 s · R3 1,527 s · bridge 1,810.8 s. Embeddings are local
@@ -168,11 +184,15 @@ the API's own `usage`. Source: `parsed/llm_proxy.jsonl`, billed at DeepSeek's of
    are labelled multi-hop because *answering* them needs two places: the class is a property of
    the answer path, and a router that is forbidden from seeing retrieval (D5) cannot see it.
 
-9. **The delivered answers hold the citation contract.** 30 held-out questions, **0 invented
-   citations, 0 refusals**, every used citation verified against the original PDF (word coverage
-   1.00 on the gate's traced examples). Evidence-target retrieval is **1.00** on factoid and
-   multi-hop; the thematic cell keeps LightRAG's **0.40** — the same weakness the benchmark
-   found, inherited honestly rather than papered over.
+9. **The delivered answers hold the citation contract, and it is not enough to win.** Across
+   **120 judged questions: 0 invented citations**, every citation unit `file, §section, p. N–M`,
+   and citation resolution **1.00**. The delivered row is the **pointwise best on factoid**
+   (0.9118) and ties LightRAG on multi-hop head-to-head (50%), but **loses thematic to every
+   row, the baseline included** (10% · 0% · 5%): its 12-chunk evidence budget puts the target
+   below the cut on 3 of 20 questions (hit 0.25 against LightRAG's 0.40) and its answers are
+   40% shorter, which a coverage rubric punishes twice. The bucketing is the finding: one
+   generation contract, a budget tuned for cost, and a class where cost and coverage pull
+   hardest against each other.
 
 10. **Bridging the community layer is a fair trade for the thematic class.** Same retrieval on
     5/5 questions, answers **37% shorter**, **33% faster**, **4% costlier**. The judged quality of
@@ -187,9 +207,10 @@ the API's own `usage`. Source: `parsed/llm_proxy.jsonl`, billed at DeepSeek's of
   descriptions with intervals, not significance claims (`nodes/judge.md`).
 - **The dev slice, not the full corpus**: 11 of 18 documents. The thematic class draws on fewer
   cross-document cases than the corpus could supply.
-- **R4 has no judged row.** The delivered system is measured on retrieval, citations, cost and
-  latency; its answer *quality* is not in `results.csv`. Running it needs an R4 loader and
-  ≈ $1.5–3 of judging.
+- **R4's thematic cell is a budget artefact, not a property of the arms.** It answers over the
+  top 12 of LightRAG's retrieved chunks; the other rows see all of theirs. Raising the budget
+  would recover evidence hit at the cost this project set out to control — the change is not
+  made here, and the report says which knob it is.
 - **The §7.4 ablation is deterministic only** — evidence hit, citations, length, cost. It does
   not say which of the two answers a judge would prefer.
 - **The reranker truncates at 512 tokens**, and 8–17 of 20 shortlisted chunks exceed it. The
@@ -225,12 +246,15 @@ hyrag.router.cli check                             # split frozen in code
 hyrag.arms.cli check
 hyrag.fuse.cli check
 hyrag.answer.cli check · eval
+hyrag.answer.cli eval --coverage judge             # R4's 120 answers (~$0.92)
+hyrag.judge.cli run --rows R4 …                    # then the judged passes (~$1.2)
 hyrag.report.cli check                             # this document
 ```
 
 Measured: Phase 1 ≈ **$13.6** of model calls (R3 $9.49 · judge $1.62 · R2 $1.20 + $0.89
-extraction · R1 $0.38), Phase 2 ≈ **$3.3** (bridge $1.00 · ablation $1.91 · arms/fuse gates
-$0.31 · router $0.01 · answer $0.05), whole project ≈ **$16.85**.
+extraction · R1 $0.38), Phase 2 ≈ **$5.4** (bridge $1.00 · ablation $1.91 · R4's answers and
+judging $2.08 · arms/fuse gates $0.31 · router $0.01 · answer $0.05), whole project
+≈ **$18.93**.
 
 ---
 

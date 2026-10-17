@@ -75,9 +75,14 @@ def build_head_to_head(pairs: list[dict] | None = None) -> list[dict]:
     """
     pairs = load_pairs() if pairs is None else pairs
     cells: list[dict] = []
+    # The ladder is whatever was run, not a hard-coded trio: Phase 2 adds R4 against each row,
+    # and a fixed list would compute those comparisons and silently never publish them
+    # (observed 2026-10-17: 1,080 R4 comparisons logged, no R4 row in head_to_head.csv).
+    tags = sorted({record["pair"] for record in pairs
+                   if record.get("pair") and record.get("winner")})
     for label in select.CLASSES:
-        for left, right in (("R1", "R2"), ("R1", "R3"), ("R2", "R3")):
-            tag = f"{left}-{right}"
+        for tag in tags:
+            left, right = tag.split("-", 1)
             subset = [record for record in pairs
                       if record.get("class") == label and record.get("pair") == tag
                       and record.get("winner")]
@@ -203,7 +208,13 @@ def build_pairwise(*, rows: dict[str, dict[str, records.AnswerRecord]] | None = 
         records_ = [record for record in pairwise if record.get("class") == label and record.get("winner")]
         if not records_:
             continue
+        # Only rows that actually competed. The arena is recorded with its contestants
+        # (`presented_order`); a row that was never in it must not appear as 0 wins, which
+        # reads as "lost every comparison" rather than "did not enter".
+        contestants = {row for record in records_ for row in (record.get("presented_order") or [])}
         for row in config.ROW_ORDER:
+            if contestants and row not in contestants:
+                continue
             wins = [record for record in records_ if record["winner"] == row]
             per_replicate = {}
             for replicate in sorted({record["replicate"] for record in records_}):

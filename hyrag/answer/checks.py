@@ -31,6 +31,10 @@ GATE_IDS = ("fact-001", "mult-051", "them-101")
 GATE_LOG = kg_light_config.RESULTS / "answer_gate.jsonl"
 EVAL_LOG = kg_light_config.RESULTS / "answer_eval.jsonl"
 EVAL_RECORD = kg_light_config.RESULTS / "answer_eval_record.json"
+# The judge's coverage: all factoid + multi-hop, thematic sampled (120). Separate files, so the
+# router's 30-question eval and the judged row never overwrite each other.
+JUDGE_LOG = kg_light_config.RESULTS / "answer_judge.jsonl"
+JUDGE_RECORD = kg_light_config.RESULTS / "answer_judge_record.json"
 _JSON = {"ensure_ascii": False, "sort_keys": True, "separators": (",", ":")}
 
 
@@ -102,25 +106,70 @@ def gate() -> int:
     return 0 if everything_green else 1
 
 
-def evaluate() -> dict:
-    """R4's row over the 30 held-out questions — deterministic, no judge calls."""
-    from hyrag.router import config as router_config
+def evaluate(coverage: str = "router", *, limit: int | None = None,
+             resume: bool = True) -> dict:
+    """Answer one of two coverages and measure the row. No judge calls.
 
-    parts = router_config.split()
-    rows = []
-    print(f"\n  R4 evaluation · {len(parts['eval'])} held-out questions · gold class routes")
-    for index, question in enumerate(parts["eval"], 1):
-        record = pipeline.answer_question(question)
-        target = set(question["evidence_target"]["chunk_ids"])
-        evidence = {entry["chunk_id"] for entry in record["evidence"]}
-        record["retrieval_hit"] = bool(target & evidence)
-        rows.append(record)
-        print(f"  [{index:2d}/{len(parts['eval'])}] {question['id']:<9} {question['class']:<9} "
-              f"hit {'Y' if record['retrieval_hit'] else 'n'}  "
-              f"{record['latency_ms']/1000:5.1f}s  ${record['cost_usd']:.4f}  "
-              f"cites {len(record['citations_used'])}")
+    `router` — the 30 held-out questions (the router's split), the delivered row's own eval.
+    `judge`  — the judge's 120 (all factoid + multi-hop, thematic sampled), which is what makes
+               R4's table cell comparable with R1–R3's.
 
-    summary = {"type": "answer_eval", "n": len(rows), "per_class": {}, "total_cost_usd": 0.0}
+    **Append per question, resume by id.** A 40-minute run is longer than a proxy connection
+    lives; an eval that holds 120 records in memory and writes them at the end loses the lot
+    when the socket drops at question 90 (observed 2026-10-17). One bad question is recorded as
+    an error row and retried on the next run, and a failed row never counts as an answer.
+    """
+    if coverage == "judge":
+        from hyrag.qset import select
+
+        questions = select.evaluation_set()
+        log, record_path = JUDGE_LOG, JUDGE_RECORD
+    else:
+        from hyrag.router import config as router_config
+
+        questions = router_config.split()["eval"]
+        log, record_path = EVAL_LOG, EVAL_RECORD
+    if limit:
+        questions = questions[:limit]
+
+    existing = _read_rows(log)
+    seen = {row["question_id"] for row in existing if row.get("status") == "success"} if resume else set()
+    todo = [question for question in questions if question["id"] not in seen]
+    print(f"\n  R4 evaluation · coverage {coverage} · {len(questions)} questions · "
+          f"{len(todo)} to answer · {len(existing)} on disk")
+
+    log.parent.mkdir(parents=True, exist_ok=True)
+    if not existing:
+        log.write_text("", encoding="utf-8")
+    with log.open("a", encoding="utf-8") as handle:
+        for index, question in enumerate(todo, 1):
+            try:
+                record = pipeline.answer_question(question)
+                target = set(question["evidence_target"]["chunk_ids"])
+                evidence = {entry["chunk_id"] for entry in record["evidence"]}
+                record["retrieval_hit"] = bool(target & evidence)
+                record["status"] = "success"
+            except Exception as error:  # a dropped socket must not cost the run
+                record = {
+                    "question_id": question["id"], "question_class": question["class"],
+                    "question": question["question"], "answer": "", "citations_used": [],
+                    "unknown_sources": [], "evidence": [], "arms": {},
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    "latency_ms": 0, "cost_usd": 0.0, "retrieval_hit": False,
+                    "status": "error", "error": f"{type(error).__name__}: {error}"[:300],
+                }
+            handle.write(json.dumps(record, **_JSON) + "\n")
+            handle.flush()
+            print(f"  [{index:2d}/{len(todo)}] {question['id']:<9} {question['class']:<9} "
+                  f"hit {'Y' if record.get('retrieval_hit') else 'n'}  "
+                  f"{record['latency_ms']/1000:5.1f}s  ${record['cost_usd']:.4f}  "
+                  f"cites {len(record.get('citations_used') or [])}"
+                  + ("" if record["status"] == "success" else f"  ERROR {record['error'][:60]}"))
+
+    rows = [row for row in _read_rows(log) if row.get("status") == "success"]
+    summary = {"type": "answer_eval", "coverage": coverage, "n": len(rows),
+               "per_class": {}, "total_cost_usd": 0.0,
+               "errors": len(_read_rows(log)) - len(rows)}
     for label in ("factoid", "multi-hop", "thematic"):
         subset = [row for row in rows if row["question_class"] == label]
         if not subset:
@@ -128,7 +177,7 @@ def evaluate() -> dict:
         summary["per_class"][label] = {
             "n": len(subset),
             "retrieval_hit_rate": round(sum(row["retrieval_hit"] for row in subset) / len(subset), 4),
-            "refusals": sum(1 for row in subset if row["refused"]),
+            "refusals": sum(1 for row in subset if row.get("refused")),
             "citations_mean": round(sum(len(row["citations_used"]) for row in subset) / len(subset), 2),
             "unknown_sources": sum(len(row["unknown_sources"]) for row in subset),
             # End to end: the arms and the generation are sequential, so the turn's wall clock
@@ -137,22 +186,25 @@ def evaluate() -> dict:
             "latency_s_mean": round(sum(
                 row["latency_ms"] + sum(arm["latency_ms"] for arm in row["arms"].values())
                 for row in subset) / len(subset) / 1000, 1),
+            "answer_latency_s_mean": round(sum(row["latency_ms"] for row in subset) / len(subset) / 1000, 1),
             "cost_usd_mean": round(sum(row["cost_usd"] for row in subset) / len(subset), 5),
             "answer_chars_mean": round(sum(len(row["answer"]) for row in subset) / len(subset)),
         }
     summary["total_cost_usd"] = round(sum(row["cost_usd"] for row in rows), 4)
-
-    with EVAL_LOG.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, **_JSON) + "\n")
-    EVAL_RECORD.write_text(json.dumps(summary, **_JSON) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(summary, **_JSON) + "\n", encoding="utf-8")
 
     for label, cell in summary["per_class"].items():
         print(f"  {label:<9} n {cell['n']:>2} · hit {cell['retrieval_hit_rate']:.2f} · "
               f"cites {cell['citations_mean']} · refused {cell['refusals']} · "
               f"{cell['latency_s_mean']}s · ${cell['cost_usd_mean']}")
-    print(f"  total ${summary['total_cost_usd']} · wrote {EVAL_LOG}")
+    print(f"  total ${summary['total_cost_usd']} · {summary['errors']} error(s) · wrote {log}")
     return summary
+
+
+def _read_rows(path: Path) -> list[dict]:
+    if not path.is_file():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def _questions() -> list[dict]:

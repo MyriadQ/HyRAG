@@ -120,8 +120,32 @@ Rates and the method: `README.md` → *Landmines* → the DeepSeek bullet; the p
 
 **The class → strategy table now exists.** `results/class_strategy.json`: pairwise, **kg-graph for all three classes** (`76% · 65% · 90%`), with the pointwise best beside it (kg-light factoid/multi-hop, baseline thematic) and the cost recorded per cell. Phase 2's router reads it — and Phase 2's arms are LightRAG and the bridged GraphRAG, so the table's job is to say that the bridged arm must reproduce the native row's coverage preference, and that a 358-second thematic turn is not shippable.
 
+## R4 addendum — measured 2026-10-17
+
+The fourth row exists (`sessions/S17-r4.md`). The delivered system answered the same 120
+questions (`hyrag.answer.cli eval --coverage judge`, $0.92) and was judged on the same rubric
+and the same protocol (1,800 pointwise calls, 1,080 head-to-head comparisons, $1.16).
+
+| class | rubric | accuracy | $/query | s/query | evidence hit |
+|---|---|---|---|---|---|
+| factoid | **0.9118** (best of four) | 0.980 | $0.0053 | 4.9 | 0.96 |
+| multi-hop | 0.8311 | 0.895 | $0.0089 | 30.6 | 0.98 |
+| thematic | 0.8178 (worst) | — | $0.0106 | 41.8 | **0.25** |
+
+Head-to-head: R4 beats the baseline **72% / 64% / 10%**, beats LightRAG **66%** and ties it on
+multi-hop (50%), loses to GraphRAG **36% / 36% / 5%**. The thematic cell loses to **every** row
+including the baseline, and the cause is measurable: the delivered answer is generated over the
+**top 12** retrieved chunks, so the evidence target falls below the cut on 3 of 20 questions
+(hit 0.25 against LightRAG's 0.40 on the same questions) and its answers are 40% shorter.
+
+Two harness bugs were found by adding the row and fixed: the head-to-head writer had a
+hard-coded trio of pairs (1,080 R4 comparisons were computed and never published), and the
+three-way arena listed R4 as 0/150 for a contest it never entered. The ladder now derives its
+pairs from the log, and the arena lists only the rows present in `presented_order`.
+
 ## Session log
 
 - 2026-10-16 — page opened. The three Phase 1 rows exist and their gates are green; their answer shapes, token accounting and citation paths were verified while opening this page (`results/*.jsonl` schemas pinned above, R2 and R3 now report cost per query, R3's `[Data: …]` markers resolve to canonical citations). Coverage today: **R1 150/150, R2 11, R3 5** — answering the rest is the first work item. Disk: 4.0 GB reclaimed by clearing uv's cache (verified: both environments and the GraphRAG CLI still work).
 - 2026-10-16 (later) — **rubric changed to the papers' three criteria** (Comprehensiveness · Diversity · Empowerment), superseding the three-plus-control design. The control dominated the ranking (it inverts every class), so the table is now about the augmentations, not about padding; the control run is kept as the sensitivity variant (`results/judge_pairwise.jsonl`). The strategy table follows the pairwise: **kg-graph for all three classes** (76% · 65% · 90%). `Accuracy` remains a separate, non-rubric column.
+- 2026-10-17 — **R4 addendum measured.** 120 delivered answers ($0.92) judged on the same rubric (1,800 pointwise calls, 1,080 head-to-head, $1.16); `results.csv` carries the fourth row and `head_to_head.csv` nine new pairs. The delivered row is pointwise best on factoid, ties LightRAG on multi-hop, and loses thematic to every row — the 12-chunk evidence budget is the cause (`sessions/S17-r4.md`).
 - 2026-10-16 (later) — **gate green, node closed** (`sessions/S09-judge.md`). Scale decided with the user: thematic sampled at **n=20** (systematic, every 2.5th question), everything else at 50; ~$11.3 and ~4 h of runs instead of ~$19. Built `hyrag/judge/` (records · citations · model · runner · table · figures), the two batch runners, and `hyrag/qset/select.py`. Generated: R2 150/150 answers, R3 120/120 (global thematic, local factoid + multi-hop), R1 already on disk. Judged: **5,220 pointwise scores · two blind pairwise protocols (720 comparisons) · 15 blinding controls · 0 failures**, `results.csv` + `class_strategy.json` + pins written by one command. Findings above; the headline is that **kg-graph wins every class head-to-head on the papers' rubric** (76% · 65% · 90%), with `Accuracy` (0.92 / 0.79) and cost ($0.38 + 358 s per thematic query) as its measured price — and that the padding control reverses the ranking, which is why it is a sensitivity run rather than the table. One dependency incident (`uv add` broke the live embedding server; restarted with `HF_HUB_OFFLINE=1` and proved bit-identical against the stored reference) and one retried question (`them-138`, empty then 27 k characters) are recorded in the session file.

@@ -41,7 +41,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
-    summary = checks.evaluate()
+    summary = checks.evaluate(args.coverage, limit=args.limit)
     print(json.dumps(summary, indent=1, sort_keys=True))
     return 0
 
@@ -50,7 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hyrag.answer.cli", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("check", help="the node's gate").set_defaults(func=cmd_check)
-    sub.add_parser("eval", help="R4's row over the held-out questions").set_defaults(func=cmd_eval)
+    eval_cmd = sub.add_parser("eval", help="R4's row over a question coverage")
+    eval_cmd.add_argument("--coverage", default="router", choices=["router", "judge"],
+                          help="router = the 30 held-out; judge = the judge's 120 (R4's table cell)")
+    eval_cmd.add_argument("--limit", type=int, default=None)
+    eval_cmd.set_defaults(func=cmd_eval)
 
     answer_cmd = sub.add_parser("answer", help="one question through the delivered pipeline")
     answer_cmd.add_argument("--id", required=True)
