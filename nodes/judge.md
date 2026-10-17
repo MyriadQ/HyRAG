@@ -1,6 +1,6 @@
 # judge — four rows × three classes, one reproducible table
 
-**~12.5 h** · **feeds** `report` · **the last box of Phase 1** · **gate** at the bottom · **status** 🔵 current — opened 2026-10-16
+**~12.5 h** · **feeds** `report` · **the last box of Phase 1** · **gate** at the bottom · **status** ✅ **closed 2026-10-16** — gate green, `sessions/S09-judge.md` · rubric changed to the papers' three criteria on 2026-10-16
 
 > **How to use this page.** This is Phase 1's last box and the one that turns three indexes into a result. Everything it measures already exists in some form; what does not exist yet is the harness that puts the rows on the same questions, hides which row answered, and produces a table a stranger can re-derive. **No row's numbers may be quoted anywhere before this node closes** — `results.csv` is the only place a number becomes a result (§7.5).
 
@@ -23,7 +23,7 @@ Two jobs beyond the table: it is the **configuration input for Phase 2's router*
 
 - **Blind and shuffled per replicate.** The row's name never appears in the object handed to the judge; the rows are unlabelled candidates in a per-replicate shuffled order (§7.2).
 - **Pointwise for the matrix, pairwise for the headline.** ~1,800 pointwise calls fill the 4 × 3 matrix; the paired hybrid-vs-best-single comparison per class is the number that carries the claim (§7.2).
-- **Four criteria, one of which is a control.** Comprehensiveness, Diversity, Empowerment, **Directness**. The control is non-negotiable: without it a longer answer always wins. **This node has a 25 k-character row and a 200-character row** — the control is load-bearing here, not decorative.
+- **The rubric is the papers' three criteria** — Comprehensiveness, Diversity, Empowerment (**changed 2026-10-16**, superseding a three-plus-Directness design). A padding control was run and then dropped from the benchmark because it dominated the ranking; it survives as the sensitivity variant (`--pairwise-criteria control`), and the session file reports both. **`Accuracy` is reported beside the rubric, never inside it** (gold-anchored; factoid + multi-hop only).
 - **Three replicates per cell**, spread reported. One replicate is an anecdote.
 - **Deterministic citation resolution, never judged** (D8b): for every citation a system emits, the cited `file, §section, p. N–M` must actually contain the cited content, checked against the parse provenance. Fold the **en dash** (U+2013 vs `-`) on both sides or correct citations read as missing.
 - **Corpus text never leaves the machine** except to our own DeepSeek endpoint (D8c). DeepEval runs **offline**: `DEEPEVAL_TELEMETRY_OPT_OUT=1`, never `deepeval login`.
@@ -91,7 +91,8 @@ Rates and the method: `README.md` → *Landmines* → the DeepSeek bullet; the p
 - **§7.1–§7.4** — four rows, three classes, the judged/pointwise-vs-pairwise split, the hard metrics (cost, latency, citation resolution), the ablation.
 - **D8a** — `GEval` pointwise + `ArenaGEval` blind pairwise; **D8b** — citation resolution is deterministic; **D8c** — nothing leaves the machine except to our own endpoint.
 - **D13** — a citation is `file, §section, p. N–M`, never a single page.
-- **§7.6** — report per class; never compare our numbers to the papers'; the `Directness` control stays.
+- **§7.6** — report per class; never compare our numbers to the papers'.
+- **2026-10-16, superseding §7.6's last clause** — the `Directness` control is **not** in the rubric. It was measured (it inverts every class) and moved to the sensitivity run, because a table carrying it describes padding rather than the augmentations. The cost of the change is stated in the session file: the rubric now rewards coverage, and `Accuracy` is what keeps "covers more" from being read as "is right more".
 
 ## If the gate fails
 
@@ -99,8 +100,28 @@ Rates and the method: `README.md` → *Landmines* → the DeepSeek bullet; the p
 
 ## Discoveries
 
-*(Empty — to be filled when the gate closes.)*
+*(Written when the gate closed, 2026-10-16. The full record, commands and artifacts are `sessions/S09-judge.md`; the numbers are `results/results.csv` and `results/class_strategy.json`.)*
+
+**The papers' protocol reproduces.** Under their rubric — Comprehensiveness · Diversity · Empowerment, blind and masked, three replicates — **GraphRAG's row wins every class head-to-head: 76% factoid · 65% multi-hop · 90% thematic** (per-question majority 39/50 · 33/50 · **20/20**). The claim the augmentation papers make is reproducible on a corpus none of their authors saw. `Accuracy` sits beside the rubric and says what the win costs: kg-graph is the **least accurate** row on the two classes that have a gold answer (0.92 factoid, 0.79 multi-hop against 0.90/0.90), and its factoid retrieval misses the target chunk 8 times in 50.
+
+**Head-to-head, LightRAG's own claim splits in two.** kg-light beats the naive baseline **56%** (factoid) and **74%** (multi-hop) and ties on thematic — its paper's "beats conventional RAG" claim, which the three-way arena had buried (13% vs 11% of a three-way contest says almost nothing). But **kg-graph beats kg-light on every class: 82% · 76% · 95%** — LightRAG's "beats GraphRAG" claim does not survive this corpus. The ladder (`results/head_to_head.csv`) is the instrument; the arena answers "who is best of three", which is a different question and one that squeezes the middle row.
+
+**The two judges disagree, and the ceiling is why.** Pointwise, the rows are within 0.01 on factoid, kg-light takes multi-hop (0.870 vs 0.821), and thematic is a three-way tie. Pairwise, kg-graph takes all three. Same rubric, same answers, same model — but **94% of Comprehensiveness scores are exactly 1.0**: a bounded 0–10 scale saturates as soon as an answer covers the question, so it cannot express "covers more". §7.2 called the paired comparison the number that carries the claim; the matrix is the per-criterion view. **The strategy table follows the pairwise.**
+
+**The ranking is a rubric choice, and that was measured rather than argued.** The same 360 comparisons with a fourth criterion that prices padding invert completely — baseline **82% / 76% / 50%**. The control was dropped from the benchmark on 2026-10-16 because it dominated the table (it is a statement about padding, not about the augmentations), but the run stays on disk as the sensitivity variant: it is the honest answer to *"isn't a longer answer always better?"* and the paragraph that turns the benchmark's biggest vulnerability into a defensible one.
+
+**GraphRAG's thematic advantage is the clearest and most expensive result in the table**: 20 of 20 head-to-head wins, **100%** evidence-target retrieval against 40% for both other rows, Diversity 0.93 — at **$0.38 and 358 s per query**, 79× the baseline's cost and 19× its latency, for a 24,056-character report. Coverage is bought with money and time, and on this corpus it is.
+
+**Citation resolution is 100% for all three rows at the granularity each can support** (R2's unit is the file — LightRAG emits filenames and a page derived by us would be a page the row never claimed), with one exception in 805 markers: `mult-062` cites an id GraphRAG truncated in its own answer text. **The comparison was blind**: the judge matched systems to answers 44% of the time against a 33% chance.
+
+**Two design choices carried the result.** *No retrieval context in the judged prompt* — with ~190 chunks from one row against ~19 from another, any context-bearing metric would have compared context volume; retrieval stayed deterministic (evidence-target hit rate) and the judged matrix stayed comparable. *A gold-anchored `Accuracy` column kept out of the rubric* — it is the same five-position rule every row's own gate uses, and it is the one number that stops "covers more" from being read as "is right more".
+
+**Cost of the phase, measured:** R3's 20 thematic answers $7.63 · R2's 150 $0.97 · the judged table $1.58 (6,687 calls across two pairwise protocols; $1.13 at the observed 40% cache-hit share). The whole benchmark, including both index builds, is **≈ $14** — the node cost engineering time, not money, as §7.2 predicted, but the pointwise call count was 3× the estimate (≈5,200, because each test case carries 4–5 criteria).
+
+**The class → strategy table now exists.** `results/class_strategy.json`: pairwise, **kg-graph for all three classes** (`76% · 65% · 90%`), with the pointwise best beside it (kg-light factoid/multi-hop, baseline thematic) and the cost recorded per cell. Phase 2's router reads it — and Phase 2's arms are LightRAG and the bridged GraphRAG, so the table's job is to say that the bridged arm must reproduce the native row's coverage preference, and that a 358-second thematic turn is not shippable.
 
 ## Session log
 
 - 2026-10-16 — page opened. The three Phase 1 rows exist and their gates are green; their answer shapes, token accounting and citation paths were verified while opening this page (`results/*.jsonl` schemas pinned above, R2 and R3 now report cost per query, R3's `[Data: …]` markers resolve to canonical citations). Coverage today: **R1 150/150, R2 11, R3 5** — answering the rest is the first work item. Disk: 4.0 GB reclaimed by clearing uv's cache (verified: both environments and the GraphRAG CLI still work).
+- 2026-10-16 (later) — **rubric changed to the papers' three criteria** (Comprehensiveness · Diversity · Empowerment), superseding the three-plus-control design. The control dominated the ranking (it inverts every class), so the table is now about the augmentations, not about padding; the control run is kept as the sensitivity variant (`results/judge_pairwise.jsonl`). The strategy table follows the pairwise: **kg-graph for all three classes** (76% · 65% · 90%). `Accuracy` remains a separate, non-rubric column.
+- 2026-10-16 (later) — **gate green, node closed** (`sessions/S09-judge.md`). Scale decided with the user: thematic sampled at **n=20** (systematic, every 2.5th question), everything else at 50; ~$11.3 and ~4 h of runs instead of ~$19. Built `hyrag/judge/` (records · citations · model · runner · table · figures), the two batch runners, and `hyrag/qset/select.py`. Generated: R2 150/150 answers, R3 120/120 (global thematic, local factoid + multi-hop), R1 already on disk. Judged: **5,220 pointwise scores · two blind pairwise protocols (720 comparisons) · 15 blinding controls · 0 failures**, `results.csv` + `class_strategy.json` + pins written by one command. Findings above; the headline is that **kg-graph wins every class head-to-head on the papers' rubric** (76% · 65% · 90%), with `Accuracy` (0.92 / 0.79) and cost ($0.38 + 358 s per thematic query) as its measured price — and that the padding control reverses the ranking, which is why it is a sensitivity run rather than the table. One dependency incident (`uv add` broke the live embedding server; restarted with `HF_HUB_OFFLINE=1` and proved bit-identical against the stored reference) and one retried question (`them-138`, empty then 27 k characters) are recorded in the session file.
