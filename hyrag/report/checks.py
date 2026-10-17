@@ -139,16 +139,27 @@ def spend() -> dict:
     }
 
 
-def check_spend(text: str) -> tuple[bool, list[str]]:
+def check_spend(text: str, tolerance: float = 0.02) -> tuple[bool, list[str]]:
+    """The report's spend is a **snapshot**; the log keeps growing after it is written.
+
+    So the check is not string equality — that would force the report to be rewritten after
+    every subsequent call. It is: the report states a total and a call count within 2% of the
+    log's state at check time. A wrong row still shows up, because a wrong row changes the
+    total by more than 2% (the smallest row is $0.05 of $15).
+    """
     measured = spend()
+    dollars = [float(value) for value in re.findall(r"\$(\d+\.\d{2})", text)]
+    counts = [int(value.replace(",", "")) for value in re.findall(r"\b\d{1,3}(?:,\d{3})+\b", text)]
+    ok_usd = any(abs(value - measured["usd"]) / measured["usd"] <= tolerance for value in dollars)
+    ok_calls = any(abs(value - measured["calls"]) / measured["calls"] <= tolerance for value in counts)
     problems = []
-    if f"${measured['usd']:.2f}" not in text:
-        problems.append(f"total ${measured['usd']:.2f} not stated")
-    if f"{measured['calls']:,}" not in text:
-        problems.append(f"call count {measured['calls']:,} not stated")
+    if not ok_usd:
+        problems.append(f"no stated total within {tolerance:.0%} of ${measured['usd']:.2f}")
+    if not ok_calls:
+        problems.append(f"no stated call count within {tolerance:.0%} of {measured['calls']:,}")
     print(f"  {'✓' if not problems else '✗'} spend: {measured['calls']:,} calls · "
           f"{measured['prompt']/1e6:.1f} M in · {measured['completion']/1e6:.1f} M out · "
-          f"${measured['usd']:.2f}")
+          f"${measured['usd']:.2f} (within {tolerance:.0%})")
     for problem in problems:
         print(f"      ! {problem}")
     return not problems, problems

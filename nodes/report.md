@@ -40,7 +40,7 @@ Likely suspects: a path written from memory (`results/answers.csv` vs `results/r
 
 ## Discoveries
 
-**The gate, green.** `uv run python -m hyrag.report.cli check`: **23 named paths exist**, the four pins match (`graphrag==3.3.0`, `453dce8`, `transformers` 5.17.0, `torch` 2.14.1), **12 headline figures** trace to their artifacts, and the spend is **recomputed from the proxy log** — 28,921 calls · 54.1 M in · 17.2 M out · **$15.56** — rather than trusted from the prose.
+**The gate, green.** `uv run python -m hyrag.report.cli check`: **23 named paths exist**, the four pins match (`graphrag==3.3.0`, `453dce8`, `transformers` 5.17.0, `torch` 2.14.1), **12 headline figures** trace to their artifacts, and the spend is **recomputed from the proxy log** — 28,931 calls · 54.2 M in · 17.2 M out · **$15.58** — rather than trusted from the prose.
 
 **§7.4's delta is now measured** (`results/ablation_record.json`, 5 thematic questions, same settings, native answers reused): evidence hit **1.00 on both sides**, citations 222.8 → 174.4, answer length 28,059 → **17,737** chars, latency 353.9 → **237.4** s, cost $0.3665 → **$0.3814** per turn. Bridging keeps the retrieval, shortens the answer by 37%, runs 33% faster and costs 4% more.
 

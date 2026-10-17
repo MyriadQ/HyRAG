@@ -109,16 +109,16 @@ the API's own `usage`. Source: `parsed/llm_proxy.jsonl`, billed at DeepSeek's of
 
 | row | calls | prompt tokens | completion | USD |
 |---|---|---|---|---|
-| `kg-graph` (R3 index + answers + queries) | 13,915 | 26.5 M | 11.7 M | **$9.49** |
-| `kg-graph-bridge` (bridge index + ablation + arms) | 5,497 | 11.4 M | 3.8 M | **$3.22** |
+| `kg-graph` | 13,915 | 26.5 M | 11.7 M | **$9.49** |
+| `kg-graph-bridge` | 5,498 | 11.4 M | 3.8 M | **$3.22** |
 | `judge` | 8,852 | 10.1 M | 1.0 M | **$1.62** |
-| `kg-light` (R2 answers + queries) | 390 | 5.7 M | 0.6 M | **$1.18** |
-| `answer` | 37 | 0.23 M | 16 k | $0.04 |
-| `router` | 228 | 0.09 M | tiny | $0.01 |
-| **total** | **28,921** | **54.1 M** | **17.2 M** | **$15.56** |
+| `kg-light` | 396 | 5.8 M | 0.6 M | **$1.20** |
+| `answer` | 40 | 0.3 M | 0.0 M | **$0.05** |
+| `router` | 228 | 0.1 M | 0.0 M | **$0.01** |
+| **total** | **28,931** | **54.2 M** | **17.2 M** | **$15.58** |
 
 - **R2's extraction pass predates the proxy** and is recorded separately: 2,347 calls · 3.43 M
-  tokens · 648.8 s (`parsed/kg_light_extraction.json`) ≈ **$0.89** at the same card → **≈ $16.45
+  tokens · 648.8 s (`parsed/kg_light_extraction.json`) ≈ **$0.89** at the same card → **≈ $16.47
   all-in** for the project.
 - **Per-query costs** are in the Phase 1 table above; the delivered system's are in its row.
 - **Index builds**: R2 extraction 648.8 s · R3 1,527 s · bridge 1,810.8 s. Embeddings are local
