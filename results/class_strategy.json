@@ -1,0 +1,116 @@
+{
+ "factoid": {
+  "pairwise_winner": "kg-graph",
+  "pairwise_winner_row": "R3",
+  "pairwise_win_rate": 0.76,
+  "pairwise_by_arm": {
+   "R1": 0.1133,
+   "R2": 0.1267,
+   "R3": 0.76
+  },
+  "pointwise_best": "kg-light",
+  "pointwise_best_mean": 0.8033,
+  "arms": {
+   "baseline": {
+    "rubric_mean": 0.7945,
+    "cost_usd_per_query": 0.002518,
+    "latency_s_per_query": 2.2,
+    "pairwise_share_3way": 0.1133,
+    "retrieval_hit_rate": 1.0
+   },
+   "kg-light": {
+    "rubric_mean": 0.8033,
+    "cost_usd_per_query": 0.004669,
+    "latency_s_per_query": 4.2,
+    "pairwise_share_3way": 0.1267,
+    "retrieval_hit_rate": 1.0
+   },
+   "kg-graph": {
+    "rubric_mean": 0.7902,
+    "cost_usd_per_query": 0.002609,
+    "latency_s_per_query": 27.4,
+    "pairwise_share_3way": 0.76,
+    "retrieval_hit_rate": 0.84
+   }
+  },
+  "n": 50,
+  "routing_note": "A route is a choice under a latency/cost budget; Phase 2's router node owns that choice. This file records the benchmark's ordering and the per-arm cost, not a route.",
+  "derived_from": "results.csv + judge_pairwise_paper3.jsonl"
+ },
+ "multi-hop": {
+  "pairwise_winner": "kg-graph",
+  "pairwise_winner_row": "R3",
+  "pairwise_win_rate": 0.6533,
+  "pairwise_by_arm": {
+   "R1": 0.1533,
+   "R2": 0.1933,
+   "R3": 0.6533
+  },
+  "pointwise_best": "kg-light",
+  "pointwise_best_mean": 0.8702,
+  "arms": {
+   "baseline": {
+    "rubric_mean": 0.8029,
+    "cost_usd_per_query": 0.003199,
+    "latency_s_per_query": 7.2,
+    "pairwise_share_3way": 0.1533,
+    "retrieval_hit_rate": 0.98
+   },
+   "kg-light": {
+    "rubric_mean": 0.8702,
+    "cost_usd_per_query": 0.005404,
+    "latency_s_per_query": 10.8,
+    "pairwise_share_3way": 0.1933,
+    "retrieval_hit_rate": 0.98
+   },
+   "kg-graph": {
+    "rubric_mean": 0.8206,
+    "cost_usd_per_query": 0.003871,
+    "latency_s_per_query": 40.7,
+    "pairwise_share_3way": 0.6533,
+    "retrieval_hit_rate": 0.92
+   }
+  },
+  "n": 50,
+  "routing_note": "A route is a choice under a latency/cost budget; Phase 2's router node owns that choice. This file records the benchmark's ordering and the per-arm cost, not a route.",
+  "derived_from": "results.csv + judge_pairwise_paper3.jsonl"
+ },
+ "thematic": {
+  "pairwise_winner": "kg-graph",
+  "pairwise_winner_row": "R3",
+  "pairwise_win_rate": 0.9,
+  "pairwise_by_arm": {
+   "R1": 0.0833,
+   "R2": 0.0167,
+   "R3": 0.9
+  },
+  "pointwise_best": "baseline",
+  "pointwise_best_mean": 0.9534,
+  "arms": {
+   "baseline": {
+    "rubric_mean": 0.9534,
+    "cost_usd_per_query": 0.004773,
+    "latency_s_per_query": 18.7,
+    "pairwise_share_3way": 0.0833,
+    "retrieval_hit_rate": 0.4
+   },
+   "kg-light": {
+    "rubric_mean": 0.9422,
+    "cost_usd_per_query": 0.009351,
+    "latency_s_per_query": 51.3,
+    "pairwise_share_3way": 0.0167,
+    "retrieval_hit_rate": 0.4
+   },
+   "kg-graph": {
+    "rubric_mean": 0.9472,
+    "cost_usd_per_query": 0.379634,
+    "latency_s_per_query": 357.8,
+    "pairwise_share_3way": 0.9,
+    "retrieval_hit_rate": 1.0
+   }
+  },
+  "n": 20,
+  "routing_note": "A route is a choice under a latency/cost budget; Phase 2's router node owns that choice. This file records the benchmark's ordering and the per-arm cost, not a route.",
+  "derived_from": "results.csv + judge_pairwise_paper3.jsonl"
+ }
+}

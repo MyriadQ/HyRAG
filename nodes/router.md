@@ -41,13 +41,13 @@ The project owner's call, and it decides the table before any code is written:
 | decision | value | why |
 |---|---|---|
 | **held-out split** | option (a): the frozen 150 split **120 dev / 30 eval**, 10 eval per class, by `select.systematic`'s own stride rule | zero drafting run, zero answer generation — eval questions are *classified*, not answered (~$0.003 for the lot) |
-| **cost envelope for a turn** | **≤ 60 s · ≤ $0.02** | excludes the benchmark's thematic winner by construction (357.8 s · $0.380 native, ~500 s · ~$0.55 bridged) |
-| **thematic route** | **`kg-light` `global`** (51.3 s · $0.0094) | the only arm that fits the envelope; R4's thematic cell therefore costs **$0.19** for 20 answers, or $0 if the delivered row reuses R2's recorded answers. The benchmark's 90% pairwise winner is **not shipped** — that is the finding, stated in the table and in the report |
+| **cost envelope for a turn** | **≤ 60 s · ≤ $0.02** | excludes the benchmark's thematic winner by construction (357.8 s · $0.380 native; measured on the bridged index: **280.5 s · $0.45**) |
+| **thematic route** | **`kg-light` `mix`** — the mode its row was measured in (51.3 s · $0.0094) | the only arm that fits the envelope; R4's thematic cell therefore costs **$0.19** for 20 answers, or $0 if the delivered row reuses R2's recorded answers. The benchmark's 90% pairwise winner is **not shipped** — that is the finding, stated in the table and in the report |
 | **multi-hop route** | both arms, `fuse` on | the roadmap's design; the bridged arm at ~$0.004/query is affordable here |
-| **factoid route** | `kg-light` local (4.2 s · $0.0047) | pointwise best and inside the envelope; kg-graph buys 76% pairwise at 27.4 s |
-| **§7.4 ablation** | **5 bridged thematic questions**, native answers reused | ~$2.75 instead of ~$11; native side already on disk and free |
+| **factoid route** | `kg-light` `mix` (4.2 s · $0.0047) | pointwise best and inside the envelope; kg-graph buys 76% pairwise at 27.4 s |
+| **§7.4 ablation** | **5 bridged thematic questions**, native answers reused | **measured $1.91** instead of ~$11; native side already on disk and free |
 
-**Remaining Phase 2 spend ≈ $5–7**, of which the R4 judged pass is $1.5–3 and the ablation sample $2.75. The index compute is finished and is not paid again.
+**Phase 2 spend, measured: $3.28** (bridge $1.00 · ablation $1.91 · arms/fuse gates ≈ $0.31 · router $0.01 · answer $0.05). What is left is the judge's R4 addendum, ≈ $1.5–3. The index compute is finished and is not paid again.
 
 ## What the benchmark says — measured, `results/class_strategy.json`
 

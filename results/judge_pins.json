@@ -1,0 +1,157 @@
+{
+ "generated_at": "2026-10-17T02:35:51+00:00",
+ "rubric_version": "judge-rubric-1",
+ "prompts_sha256": "2038a66b6b429ecebfee5dfa735dff597167629c26228de2ee61d38c5dc57f4a",
+ "qset": {
+  "path": "qset/questions.jsonl",
+  "sha256": "21321f9e6373e0d8bdeb7027acac54a476afb7a2cb954b126fccc4d4903162ff",
+  "commit": "2c5de79657c7f5b1dd8ccb45ba1a8a9fbe2804cb"
+ },
+ "protocol": {
+  "replicates": 3,
+  "seed": 20261016,
+  "temperature": 0.0,
+  "thinking": "disabled",
+  "judge_model": "deepseek-flash",
+  "deepeval": "4.3.0",
+  "evidence_in_prompt": "none — the pointwise matrix is judged without retrieval_context",
+  "thematic_gold": "rubric only; not passed as expected_output",
+  "citation_resolution": "deterministic; R2 at file granularity by the row's own shape",
+  "thematic_sample": {
+   "n": 20,
+   "rule": "systematic; every 2.5th thematic question in file order",
+   "ids": [
+    "them-100",
+    "them-102",
+    "them-105",
+    "them-108",
+    "them-110",
+    "them-112",
+    "them-115",
+    "them-118",
+    "them-120",
+    "them-122",
+    "them-125",
+    "them-128",
+    "them-130",
+    "them-132",
+    "them-135",
+    "them-138",
+    "them-140",
+    "them-142",
+    "them-145",
+    "them-148"
+   ]
+  }
+ },
+ "rows": {
+  "R1": {
+   "answers": "results/baseline_answers.jsonl",
+   "sha256": "0a4a0b3904d7932ebd61444fd9d8045a0f9490f37651dd01fe2c7b02b11ad82d",
+   "records": 150
+  },
+  "R2": {
+   "answers": "results/kg_light_answers.jsonl",
+   "sha256": "c7eef2fd5091581d2f731fe656e2ab3fd525b8b6ca67d3810b14eace01789a0d",
+   "records": 150
+  },
+  "R3": {
+   "answers": "results/kg_graph_answers.jsonl",
+   "sha256": "a0f37d80ce77b71b5bf7b4b2445d45bbcd9836d5b67c0c65f395e2c0b9bff0f6",
+   "records": 120
+  }
+ },
+ "indexes": {
+  "graphrag": "graphrag==3.3.0",
+  "graphrag_settings_sha256": "733a481bf5fc26ba37a64e822d7d5eace22da07c8c5d542194721881bfdcd115",
+  "lightrag": "453dce8"
+ },
+ "rates_usd_per_m": {
+  "input_miss": 0.15,
+  "input_hit": 0.003,
+  "output": 0.6
+ },
+ "judge_calls": {
+  "calls": 8847,
+  "prompt_tokens": 10043332,
+  "completion_tokens": 1037429,
+  "prompt_cache_hit_tokens": 3489344,
+  "prompt_cache_hit_share": 0.3474,
+  "cost_usd_upper_bound": 2.128957,
+  "errors": 3
+ },
+ "rubric": {
+  "criteria": [
+   "comprehensiveness",
+   "diversity",
+   "empowerment"
+  ],
+  "accuracy_beside_rubric": [
+   "correctness"
+  ],
+  "headline_pairwise": "results/judge_pairwise_paper3.jsonl",
+  "head_to_head": {
+   "log": "results/judge_pairwise_pairs.jsonl",
+   "records": 1080,
+   "pairs": [
+    "R1-R2",
+    "R1-R3",
+    "R2-R3"
+   ],
+   "use": "two-way comparisons — the papers' own claim format"
+  },
+  "sensitivity_pairwise": {
+   "log": "results/judge_pairwise.jsonl",
+   "records": 360,
+   "criteria": "the three above plus Directness (a padding penalty)",
+   "use": "sensitivity only — it ranks the rows in the opposite order; not in the table"
+  }
+ },
+ "cells": [
+  {
+   "row": "R1",
+   "class": "factoid",
+   "n": 50
+  },
+  {
+   "row": "R1",
+   "class": "multi-hop",
+   "n": 50
+  },
+  {
+   "row": "R1",
+   "class": "thematic",
+   "n": 20
+  },
+  {
+   "row": "R2",
+   "class": "factoid",
+   "n": 50
+  },
+  {
+   "row": "R2",
+   "class": "multi-hop",
+   "n": 50
+  },
+  {
+   "row": "R2",
+   "class": "thematic",
+   "n": 20
+  },
+  {
+   "row": "R3",
+   "class": "factoid",
+   "n": 50
+  },
+  {
+   "row": "R3",
+   "class": "multi-hop",
+   "n": 50
+  },
+  {
+   "row": "R3",
+   "class": "thematic",
+   "n": 20
+  }
+ ]
+}

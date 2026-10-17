@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from hyrag.judge import config, records, runner, table
+from hyrag.judge import config, figures, records, runner, table
 from hyrag.judge import prompts
 from hyrag.judge.table import build_cells, build_pairwise, build_blinding
 
@@ -165,6 +165,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     table_cmd = sub.add_parser("table", help="results.csv + pins + prompt copy + markdown")
     table_cmd.set_defaults(func=cmd_table)
+
+    figures_cmd = sub.add_parser("figures", help="the report figures from results.csv")
+    figures_cmd.set_defaults(func=lambda _args: figures.main())
 
     check = sub.add_parser("check", help="re-derive the artifacts and report gaps")
     check.set_defaults(func=cmd_check)

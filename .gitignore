@@ -36,8 +36,14 @@ qset/critique.jsonl
 qset/shortlist.jsonl
 
 # benchmark answers — carry corpus-derived text (© OEM), same reason as the qset drafts.
-# Only the results table itself (results.csv, §7.5) is ever committed.
-results/
+# The aggregate artifacts ARE committed — numbers, never answer text: the judged table (§7.5),
+# the head-to-head ladder, the router's input table, and the judge's pins. Everything else in
+# results/ (the answer JSONLs, the judge's per-item scores) stays local.
+results/*
+!results/results.csv
+!results/head_to_head.csv
+!results/class_strategy.json
+!results/judge_pins.json
 
 # working documents and journals — local only, never published
 AGENTS.md

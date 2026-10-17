@@ -117,9 +117,10 @@ the API's own `usage`. Source: `parsed/llm_proxy.jsonl`, billed at DeepSeek's of
 | `router` | 228 | 0.1 M | 0.0 M | **$0.01** |
 | **total** | **28,931** | **54.2 M** | **17.2 M** | **$15.58** |
 
-- **R2's extraction pass predates the proxy** and is recorded separately: 2,347 calls · 3.43 M
-  tokens · 648.8 s (`parsed/kg_light_extraction.json`) ≈ **$0.89** at the same card → **≈ $16.47
-  all-in** for the project.
+- **Two passes predate the proxy** and are priced from their own records: R2's extraction
+  (2,347 calls · 3.43 M tokens · 648.8 s, `parsed/kg_light_extraction.json`) ≈ **$0.89**, and
+  R1's 150 answers (the per-query costs in §2 × 120 questions) ≈ **$0.38** → **≈ $16.85 all-in**
+  for the project.
 - **Per-query costs** are in the Phase 1 table above; the delivered system's are in its row.
 - **Index builds**: R2 extraction 648.8 s · R3 1,527 s · bridge 1,810.8 s. Embeddings are local
   and cost $0 in money, but dominate wall clock in all three.
@@ -227,9 +228,9 @@ hyrag.answer.cli check · eval
 hyrag.report.cli check                             # this document
 ```
 
-Measured: Phase 1 ≈ **$12.8** of model calls (indexes + answers + judging), Phase 2 ≈ **$3.7**
-(bridge $1.00 · router $0.02 · arms $0.47 · fuse $0.02 · answer $0.26 · ablation $1.91), whole
-project ≈ **$16.45** including R2's pre-proxy extraction.
+Measured: Phase 1 ≈ **$13.6** of model calls (R3 $9.49 · judge $1.62 · R2 $1.20 + $0.89
+extraction · R1 $0.38), Phase 2 ≈ **$3.3** (bridge $1.00 · ablation $1.91 · arms/fuse gates
+$0.31 · router $0.01 · answer $0.05), whole project ≈ **$16.85**.
 
 ---
 

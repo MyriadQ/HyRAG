@@ -1,0 +1,10 @@
+class,pair,n,left_wins,right_wins,left_share,replicate_min,replicate_max
+factoid,R1-R2,50,22,28,0.44,0.42,0.48
+factoid,R1-R3,50,7,43,0.14,0.12,0.16
+factoid,R2-R3,50,9,41,0.18,0.18,0.2
+multi-hop,R1-R2,50,13,37,0.26,0.26,0.36
+multi-hop,R1-R3,50,11,39,0.22,0.22,0.26
+multi-hop,R2-R3,50,12,38,0.24,0.24,0.28
+thematic,R1-R2,20,11,9,0.55,0.5,0.55
+thematic,R1-R3,20,1,19,0.05,0.1,0.1
+thematic,R2-R3,20,1,19,0.05,0.0,0.05

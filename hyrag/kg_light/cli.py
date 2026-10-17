@@ -6,7 +6,7 @@
     uv run python -m hyrag.kg_light.cli reset                   # derived data only; keeps the LLM cache
     uv run python -m hyrag.kg_light.cli map                     # build + print the §5.6 map
     uv run python -m hyrag.kg_light.cli query --class thematic  # one question, traced
-    uv run python -m hyrag.kg_light.cli answer --all           # the benchmark: the frozen set, recorded
+    uv run python -m hyrag.kg_light.cli answer                  # the benchmark: the frozen set, recorded
     uv run python -m hyrag.kg_light.cli check                   # the node's gate
 
 `ingest` is the expensive command (it is the one extraction pass D1 pays for); everything
