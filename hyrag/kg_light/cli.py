@@ -6,6 +6,7 @@
     uv run python -m hyrag.kg_light.cli reset                   # derived data only; keeps the LLM cache
     uv run python -m hyrag.kg_light.cli map                     # build + print the §5.6 map
     uv run python -m hyrag.kg_light.cli query --class thematic  # one question, traced
+    uv run python -m hyrag.kg_light.cli answer --all           # the benchmark: the frozen set, recorded
     uv run python -m hyrag.kg_light.cli check                   # the node's gate
 
 `ingest` is the expensive command (it is the one extraction pass D1 pays for); everything
@@ -24,8 +25,10 @@ import asyncio
 import json
 import logging
 import sys
+from pathlib import Path
 
-from hyrag.kg_light import checks, config, idmap, ingest, query
+from hyrag.kg_light import bench, checks, config, idmap, ingest, query
+from hyrag.qset import select
 
 ANSWER_PREVIEW = 600  # characters printed per query; the full text goes to results/
 
@@ -138,6 +141,29 @@ def cmd_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_answer(args: argparse.Namespace) -> int:
+    """The benchmark run: every question of the evaluation set, one record each.
+
+    `--all` is the frozen 150; `--eval-set` is the judged table's coverage (factoid and
+    multi-hop whole, thematic sampled — `hyrag.qset.select`). Either way the answer cache is
+    off, so the recorded cost is what the run actually spent.
+    """
+    if args.eval_set:
+        questions = select.evaluation_set()
+    else:
+        questions = select.load()
+    if args.question_class:
+        questions = [record for record in questions if record["class"] in args.question_class]
+    if args.limit:
+        questions = questions[: args.limit]
+    print(f"  {select.describe(questions)}")
+    tally = bench.run(questions, mode=args.mode,
+                      out=Path(args.out) if args.out else bench.ANSWER_LOG,
+                      resume=not args.no_resume)
+    print(f"\n  answered {tally['answered']} · failed {tally['failed']} · skipped {tally['skipped']}")
+    return 0 if not tally["failed"] else 1
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     return asyncio.run(checks.run(args.mode))
 
@@ -173,6 +199,18 @@ def build_parser() -> argparse.ArgumentParser:
     query_cmd.add_argument("--text", help="an ad-hoc question")
     query_cmd.add_argument("--mode", help=f"LightRAG query mode (default {config.QUERY_MODE})")
     query_cmd.set_defaults(func=cmd_query)
+
+    answer_cmd = sub.add_parser("answer", help="answer the frozen question set (the benchmark run)")
+    answer_cmd.add_argument("--eval-set", action="store_true",
+                            help="the judged coverage: all factoid + multi-hop, thematic sampled")
+    answer_cmd.add_argument("--class", dest="question_class", action="append",
+                            choices=checks.CLASSES, help="repeatable")
+    answer_cmd.add_argument("--limit", type=int, default=None)
+    answer_cmd.add_argument("--mode", help=f"LightRAG query mode (default {config.QUERY_MODE})")
+    answer_cmd.add_argument("--out", help=f"record file (default {bench.ANSWER_LOG})")
+    answer_cmd.add_argument("--no-resume", action="store_true",
+                            help="re-answer questions already in the out file")
+    answer_cmd.set_defaults(func=cmd_answer)
 
     check_cmd = sub.add_parser("check", help="the node's gate")
     check_cmd.add_argument("--mode", help=f"LightRAG query mode (default {config.QUERY_MODE})")

@@ -5,6 +5,7 @@
     uv run python -m hyrag.kg_graph.cli inputs                # the 369-chunk root
     uv run python -m hyrag.kg_graph.cli index                 # the native run (background job)
     uv run python -m hyrag.kg_graph.cli query --class thematic
+    uv run python -m hyrag.kg_graph.cli answer --eval-set        # the benchmark: the judged coverage
     uv run python -m hyrag.kg_graph.cli counts
     uv run python -m hyrag.kg_graph.cli check                 # the node's gate
 
@@ -21,7 +22,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from hyrag.kg_graph import checks, config, inputs, resolve, run, tables
+from hyrag.kg_graph import bench, checks, config, inputs, resolve, run, tables
+from hyrag.qset import select
 
 ANSWER_PREVIEW = 700
 
@@ -97,6 +99,29 @@ def cmd_counts(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_answer(args: argparse.Namespace) -> int:
+    """The benchmark run: the evaluation set (or a slice of it), one record per question.
+
+    Sequential on purpose — token windows are markers into the shared proxy log, and two
+    R3 processes at once would attribute each other's calls (`bench.py` says why).
+    """
+    if args.eval_set:
+        questions = select.evaluation_set()
+    elif args.question_class:
+        questions = select.select(classes=args.question_class)
+    elif args.text:
+        questions = [{"id": "ad-hoc", "class": args.method_class, "question": args.text}]
+    else:
+        questions = select.load()
+    if args.limit:
+        questions = questions[: args.limit]
+    print(f"  {select.describe(questions)}")
+    tally = bench.answer_all(questions, out=Path(args.out) if args.out else bench.ANSWER_LOG,
+                             resume=not args.no_resume)
+    print(f"\n  answered {tally['answered']} · failed {tally['failed']} · skipped {tally['skipped']}")
+    return 0 if not tally["failed"] else 1
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     return checks.run_gate(_root(args), skip_query=args.skip_query)
 
@@ -120,6 +145,21 @@ def build_parser() -> argparse.ArgumentParser:
     query_cmd.add_argument("--method", default="global", choices=["global", "local", "drift", "basic"])
     query_cmd.add_argument("--text", default=None, help="default: the first thematic question")
     query_cmd.set_defaults(func=cmd_query)
+
+    answer_cmd = sub.add_parser("answer", help="answer the frozen question set (the benchmark run)")
+    answer_cmd.add_argument("--eval-set", action="store_true",
+                            help="the judged coverage: all factoid + multi-hop, thematic sampled")
+    answer_cmd.add_argument("--class", dest="question_class", action="append",
+                            choices=["factoid", "multi-hop", "thematic"], help="repeatable")
+    answer_cmd.add_argument("--limit", type=int, default=None)
+    answer_cmd.add_argument("--text", help="one ad-hoc question (with --method-class)")
+    answer_cmd.add_argument("--method-class", dest="method_class", default="thematic",
+                            choices=["factoid", "multi-hop", "thematic"],
+                            help="the class whose method an ad-hoc question uses")
+    answer_cmd.add_argument("--out", help=f"record file (default {bench.ANSWER_LOG})")
+    answer_cmd.add_argument("--no-resume", action="store_true",
+                            help="re-answer questions already in the out file")
+    answer_cmd.set_defaults(func=cmd_answer)
 
     citations_cmd = sub.add_parser("citations", help="resolve the last answer's [Data: …] markers")
     citations_cmd.set_defaults(func=cmd_citations)

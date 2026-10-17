@@ -101,8 +101,14 @@ def embedding_func(tracker: Any | None = None) -> EmbeddingFunc:
     )
 
 
-def build_rag(tracker: Any | None = None) -> LightRAG:
-    """The row's one LightRAG instance. Caller owns its lifecycle (initialize/finalize)."""
+def build_rag(tracker: Any | None = None, *, enable_llm_cache: bool = True) -> LightRAG:
+    """The row's one LightRAG instance. Caller owns its lifecycle (initialize/finalize).
+
+    `enable_llm_cache=False` is for the **scored** run: with the cache on, a question
+    answered once and asked again returns the cached completion with `calls: 0`, and the
+    cost column then reports `$0.00` for work that was paid for. Development keeps it on —
+    a smoke re-run of the same question should not pay twice.
+    """
     extract = _llm_func(thinking_off=True, max_tokens=config.EXTRACT_MAX_TOKENS, tracker=tracker)
     keyword = _llm_func(thinking_off=True, max_tokens=config.EXTRACT_MAX_TOKENS, tracker=tracker)
     query = _llm_func(thinking_off=False, max_tokens=config.QUERY_MAX_TOKENS, tracker=tracker)
@@ -122,6 +128,7 @@ def build_rag(tracker: Any | None = None) -> LightRAG:
             "keyword": RoleLLMConfig(func=keyword, max_async=config.KEYWORD_MAX_ASYNC),
         },
         chunking_func=our_chunker,
+        enable_llm_cache=enable_llm_cache,
         llm_model_max_async=config.LLM_MAX_ASYNC,
         embedding_func_max_async=config.EMBEDDING_MAX_ASYNC,
         embedding_batch_num=config.EMBEDDING_BATCH,
