@@ -49,7 +49,7 @@ Three standalone rows: R1 naive RAG (dense top-k), R2 LightRAG `453dce8` (`mix`)
 | R2 kg-light | multi-hop | 50 | **0.8702** | 0.903 | $0.0054 | 10.8 | 0.98 | 1.00 |
 | R2 kg-light | thematic | 20 | 0.9422 | — | $0.0094 | 51.3 | 0.40 | 1.00 |
 | R3 kg-graph | factoid | 50 | 0.7902 | 0.917 | $0.0026 | 27.4 | 0.84 | 1.00 |
-| R3 kg-graph | multi-hop | 50 | 0.8206 | 0.789 | $0.0039 | 40.7 | 0.92 | 0.999 |
+| R3 kg-graph | multi-hop | 50 | 0.8206 | 0.789 | $0.0039 | 40.7 | 0.92 | **1.00** |
 | R3 kg-graph | thematic | 20 | 0.9472 | — | **$0.3796** | **357.8** | **1.00** | 1.00 |
 
 **Head-to-head (per-question majority, blind).** Source: `results/head_to_head.csv`,

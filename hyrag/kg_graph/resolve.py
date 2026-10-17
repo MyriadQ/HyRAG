@@ -49,9 +49,13 @@ KIND_TABLE = {
 
 # GraphRAG truncates a long reference list with a literal `+more` token:
 #     [Data: Reports (527, 464, 458, 444, 271, +more)]
-# It is not an id and it must not be "resolved" — but it must not vanish either: a truncated
-# list means the answer cites more evidence than it names, which a reader should know.
+# and the model sometimes writes its own ellipsis instead:
+#     [Data: Relationships (1511...)]
+# Neither is an id and neither may be "resolved" — but neither may vanish either: a truncated
+# list means the answer cites more evidence than it names, which a reader should know. So both
+# are counted as truncations, and only a well-formed id that matches no row is *unresolved*.
 TRUNCATION = "+more"
+ELLIPSIS = ("...", "\u2026")
 
 
 def parse_markers(answer: str) -> tuple[dict[str, list[str]], int]:
@@ -66,7 +70,7 @@ def parse_markers(answer: str) -> tuple[dict[str, list[str]], int]:
             for value in (item.strip() for item in id_list.split(",")):
                 if not value:
                     continue
-                if value.startswith("+"):
+                if value.startswith("+") or any(mark in value for mark in ELLIPSIS):
                     truncated += 1
                     continue
                 found.setdefault(key, []).append(value)
