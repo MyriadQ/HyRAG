@@ -7,7 +7,41 @@ Two deliverables over one corpus of Airbus/Boeing-related documents — two phas
 
 One sentence: **measure three systems standalone; deliver a fourth that shares one graph, routes per class, and holds the conversation.**
 
-Why unify at all: extraction dominates indexing cost, and the benchmark keeps GraphRAG's native index around — so the price of sharing one graph is a **measured number**, not an assumption (the *Evaluation protocol* section below).
+Why unify at all: extraction dominates indexing cost, and the benchmark keeps GraphRAG's native index around — so the price of sharing one graph is a **measured number**, not an assumption.
+
+**`REPORT.md` is the written deliverable** — results, costs, findings and limitations, every figure traced to an artifact. This file is the map of what was built and how it was judged.
+
+---
+
+## Results at a glance
+
+Judged on the dev slice (12 documents, 508 pp): 150 questions, 50 per class, thematic sampled at n = 20. **Rubric mean** is the mean of the papers' three criteria (Comprehensiveness · Diversity · Empowerment); **accuracy** is the gold-anchored column reported *beside* that rubric, never inside it.
+
+| row | class | rubric mean | accuracy | retrieval hit | $ / query | latency |
+|---|---|---|---|---|---|---|
+| **R1** naive RAG | factoid | 0.795 | **1.000** | 1.00 | 0.0025 | 2.2 s |
+| | multi-hop | 0.803 | **0.897** | 0.98 | 0.0032 | 7.2 s |
+| | thematic | **0.953** | — | 0.40 | 0.0048 | 18.7 s |
+| **R2** LightRAG | factoid | 0.803 | **1.000** | 1.00 | 0.0047 | 4.2 s |
+| | multi-hop | **0.870** | **0.903** | 0.98 | 0.0054 | 10.8 s |
+| | thematic | 0.942 | — | 0.40 | 0.0094 | 51.3 s |
+| **R3** GraphRAG | factoid | 0.790 | 0.917 | 0.84 | 0.0026 | 27.4 s |
+| | multi-hop | 0.821 | 0.789 | 0.92 | 0.0039 | 40.7 s |
+| | thematic | 0.947 | — | **1.00** | **0.3796** | **357.8 s** |
+| **R4** delivered | factoid | **0.912** | 0.980 | 0.96 | 0.0053 | 4.9 s |
+| | multi-hop | 0.831 | 0.895 | 0.98 | 0.0089 | 30.6 s |
+| | thematic | 0.818 | — | 0.25 | 0.0106 | 41.8 s |
+
+Thematic has no gold answer by construction, so it carries no accuracy column. Head-to-head, blind and shuffled over three replicates, **GraphRAG wins every class: 76% · 65% · 90%**.
+
+What that table says, in four lines:
+
+- **The papers' protocol reproduces** — on a corpus its authors never saw, the graph-augmented row wins every class pairwise.
+- **The win is coverage, not correctness.** R3 wins the rubric and has the *lowest* accuracy on both classes with a gold answer (0.917 / 0.789 against 1.000 / 0.903 for LightRAG), at **79× the baseline's cost and 19× its latency** on thematic. 94% of Comprehensiveness scores are exactly 1.0, so a bounded scale cannot rank "covers more" — the paired comparison carries the claim.
+- **The delivered row holds the citation contract:** 0 invented citations across 120 judged answers, resolution 1.00, pointwise best on factoid. Its thematic cell is the weakest — an evidence-budget artefact (top 12 chunks), not a property of the arms.
+- **Sharing one extraction pass pays in tokens, not in time:** the bridged index costs **−60% calls and −23% tokens** but runs **1,811 s against R3's 1,527 s**, because embeddings dominate and the bridged graph is 56% larger.
+
+Whole project spend: **$17.66** in proxy-logged calls, **≈ $18.93** all-in. The other seven findings, the cost table by row and the limitations are in `REPORT.md`.
 
 ---
 
@@ -50,28 +84,13 @@ flowchart TB
 
 One extraction pass, one graph, two arms, one cited answer. The router picks a **strategy** per class — one arm for factoid and thematic, both fused for multi-hop — from a table read off Phase 1's results. No naive arm and no GraphRAG-native index here: both belong to Phase 1.
 
-All four rows of the judge read the **same chunks**, so a difference between them comes from extraction and retrieval rather than from chunk boundaries. The decision record and the protocol are below.
-
----
-
-## How this repo is laid out
-
-| where | what |
-|---|---|
-| **`README.md`** (this file) | the architecture, the decisions, the protocol and the current state — the whole design in one place |
-| **`REPORT.md`** | the written deliverable: benchmark results, delivered-system results, costs, findings, limitations — every number traced to an artifact |
-| `nodes/⟨id⟩-*.md` | one design page per pipeline stage, written when that stage opens. All thirteen boxes are closed: `corpus`, `parse`, `qset`, `baseline`, `kg-light`, `kg-graph`, `judge`, `bridge`, `router`, `arms`, `fuse`, `answer`, `report` |
-| `hyrag/` | the pipeline: `parse/` (PDFs → anchored blocks) · `chunker/` (blocks → chunks carrying page ranges) · `qset/` (the question set's drafting harness) · `embedding/` (one encoder for all four rows) · `serving/` (the OpenAI-compatible `/v1/embeddings` service over that encoder, plus its equality check) · `baseline/` (the R1 index: `store.py`, `answer.py`, `cli.py`, `checks.py`) · `kg_light/` (R2: `chunker.py` returns the shared chunks to LightRAG, `builder.py` wires the row, `ingest.py` runs the pass, `idmap.py` is §5.6's map, `checks.py` is the gate) · `kg_graph/` (R3 natively, plus `bridge/` — BYOG's converter, runner and gate) · `judge/` (the blind four-row harness) · `router/` (condense, classify, the strategy table) · `arms/` (the two retrieval adapters and their shared record) · `fuse/` (RRF + cross-encoder rerank over the two arms) · `answer/` (the delivered answer and its PDF-verified citations) · `report/` (the §7.4 sample and the deliverable's checks) |
-| `qset/questions.jsonl` | the evaluation instrument: 150 questions, each with a gold answer and an evidence target |
-| `papers/` | the source papers |
-
-**Vocabulary — "node" means four different things here:** a **roadmap node** (a box in the phase diagrams above), a **node page** (its design doc under `nodes/`), a **LangGraph node** (a step in the `StateGraph`), and a **KG node** (an entity in the graph). Say *box*, *page*, *step*, *entity* when it matters.
+All four rows of the judge read the **same chunks**, so a difference between them comes from extraction and retrieval rather than from chunk boundaries.
 
 ---
 
 ## The three question classes
 
-Every row is measured on the same three kinds of question, and the class is what the router later routes on.
+Every row is measured on the same three kinds of question, and the class is what the router routes on.
 
 | class | what it asks | what it separates |
 |---|---|---|
@@ -79,7 +98,7 @@ Every row is measured on the same three kinds of question, and the class is what
 | **multi-hop** | two facts that must be connected — *"Which systems does the CFM56-7B26 engine affect on the 737NG?"* | graph traversal: the connection lives between chunks, never inside one |
 | **thematic** | recurring themes across documents — *"What are the recurring themes in the accident reports across both manufacturers?"* | summarisation over communities; no chunk list answers it |
 
-The instrument is `qset/questions.jsonl` — **150 questions, 50 per class**, each with a gold answer and the evidence target (the chunk ids, hence the page range) that contains it. It was frozen before any router existed; that commit is the proof.
+The instrument is `qset/questions.jsonl` — **150 questions, 50 per class**, each with a gold answer and the evidence target (the chunk ids, hence the page range) that contains it. It was frozen at commit `2c5de79`, before any router existed; that ordering is what the benchmark rests on.
 
 ---
 
@@ -105,84 +124,65 @@ Each box as a black box: what it is responsible for, and what it is explicitly *
 
 ---
 
-## Decisions
-
-The spine of the design: each row is a decision an examiner can attack, with the reason it survives.
-
-| # | decision | why |
-|---|---|---|
-| **D1** | the delivered system shares **one extraction pass**; the benchmark runs both systems natively | extraction dominates indexing cost, and running both natively turns the merge into a *measured* number rather than an assumption |
-| **D2** | **LightRAG extracts, GraphRAG summarises** — the community layer only | one graph, two representations; nothing is extracted twice in the delivered system |
-| **D3** | community reports live in GraphRAG's own tables, never inside LightRAG | the bridge feeds a documented workflow instead of forking either library |
-| **D4** | GraphRAG runs **natively** in the benchmark and as a workflow subset in the delivered system | the benchmark must measure the method, not our conversion of it |
-| **D5** | **route before retrieval, fuse by rank if at all** — the class→strategy mapping is a table in our code | a model must not make the routing decision, or it cannot be ablated |
-| **D6** | condense the turn (history + question → one standalone query) **before** routing | otherwise the router and the retriever see a pronoun with no referent |
-| **D7** | community reports reach the user only through the thematic arm | a report is synthesised text, and that is what the thematic class asks for |
-| **D8–D8c** | judged per class over four rows with an opposing **control criterion**; blind and shuffled; pointwise matrix plus one pairwise headline; **citation resolution decided by code, not by a model** | a longer answer wins every comparison without a control criterion; ranks and deterministic checks cannot be gamed |
-| **D9** | Postgres + `pgvector` — no second store, no ChromaDB | one place for KV, vectors and status; neither graph system ships a lexical index anyway |
-| **D10** | extraction is **incremental**, the community layer is **rebuild-only** | communities are a global property of the graph; pretending otherwise yields stale reports |
-| **D11** | the corpus is frozen for the evaluation; batch refresh is designed-for, not built | a moving corpus makes every number unattributable |
-| **D12** | thematic retrieval uses **dynamic community selection**, never flat top-k | rating from the root down prunes whole subtrees, so deeper evidence is still reached |
-| **D13** | citations are `file, §section, page range` — never a single page | **59% of chunks cross a page boundary**; one page number is a claim the reader will catch out |
-| **D14** | the corpus is chosen by **extractability, not brand** | the most official free document — dimension tables, no prose — is the worst material to build a graph from |
-| **D15** | Postgres + NetworkX, **no containers** | `pgvector` is bottled, the graph stays an in-process Python object, and the server runs single-worker |
-| **D16** | **one chunk set for all four rows** | a difference between rows must come from extraction and retrieval, never from where the text happened to be cut |
-
-**The provenance chain, and the trap in it.** A citation resolves through **ids**, never through text: chunk → the block ids it was built from → each block's physical page → the document's printed-page map, which may legitimately have no entry — then the citation says `(physical)` rather than guessing. The trap: LightRAG keys a chunk by a hash of its **content**, so two byte-identical chunks (routine in an MMEL) would collapse into one key with one `file_path`, and the citation would name the wrong document. Exact duplicates are therefore collapsed **at chunking** with every location recorded, and the citation enumerates them.
-
----
-
 ## Evaluation protocol
 
 The protocol comes from the two source papers; their published numbers do not — different corpus, different model, different questions.
 
-- **Four rows, three classes.** Naive RAG · LightRAG · GraphRAG, each standalone, plus the delivered system once it exists. Every row answers the same frozen question set over the same chunks.
+- **Four rows, three classes.** Naive RAG · LightRAG · GraphRAG, each standalone, plus the delivered system. Every row answers the same frozen question set over the same chunks.
 - **Judged blind and shuffled** — pointwise for the matrix, one pairwise comparison for the headline, three replicates, because a judge is stochastic. One criterion opposes the others on purpose.
 - **Three hard metrics, not judged:** cost per query, latency per query, and **citation resolution** — does the cited `file, §section, p. N–M` actually contain the cited content?
 - **One ablation:** the same global search over GraphRAG's native graph and over the bridged one. The delta is the measured price of sharing a single extraction pass.
 - **Reproducible from one command**: the frozen question set, the judge's prompts and rubric version saved beside the results, library versions pinned.
 
+**Citations resolve through ids, never through text.** A chunk names the blocks it was built from, each block names its physical page, and the document's printed-page map closes the chain — a map that may legitimately have no entry, in which case the citation says `(physical)` rather than guessing. Two traps are handled in code: identical chunk text collapses under LightRAG's content hash (so duplicates are collapsed at chunking with every location kept), and **59% of chunks cross a page boundary** — which is why a citation is always a range and never a single page.
+
 ---
 
-## State — as of 2026-10-17
+## What is in this repo
 
-**Both phases are complete.** Phase 1: corpus frozen, parse and chunker done, question set frozen, all three benchmark rows built, judged table produced. Phase 2: one extraction pass, a bridged community layer, a router, two arms, RRF + rerank, and one delivered answer with PDF-verified citations. **`REPORT.md` is the written deliverable.** 18 documents · 3,939 pp (`CORPUS.md`, `corpus.sha256`); dev slice v1 · 508 pp (`slice.sha256`) — and the benchmark is evaluated on **the slice**, not the full corpus. The pipeline goes `parsed/<stem>/blocks.jsonl` → **375 chunks** (369 unique, 6 collapsed) → **150 questions** (50 factoid · 50 multi-hop · 50 thematic) → **150 generated answers**, every one carrying a citation. Each augmentation row owns an index: LightRAG's **4,525 entities · 6,835 relations** behind a **bijective** key map, GraphRAG's **2,817 entities · 5,895 relations · 644 communities** with a report each, and the bridged index sharing LightRAG's graph — **4,389 entities · 6,775 relationships · 932 communities**, with a report each.
+| path | what |
+|---|---|
+| **`REPORT.md`** | **the written deliverable** — benchmark and delivered-system results, costs, ten findings, limitations, pins |
+| `PREPLAN.md` | the architecture plan and the numbered decision record the design rests on |
+| `nodes/⟨id⟩-*.md` | one design page per pipeline stage, thirteen of them, all closed |
+| `sessions/` | the working journal, one file per session — the debug trail behind each node |
+| `hyrag/` | the pipeline: `parse/` (PDFs → anchored blocks) · `chunker/` (blocks → chunks carrying page ranges) · `qset/` (the question-drafting harness) · `embedding/` + `serving/` (one encoder, behind a local `/v1/embeddings` and `/v1/chat/completions` service) · `baseline/` (R1) · `kg_light/` (R2) · `kg_graph/` (R3, plus `bridge/`) · `judge/` (the blind four-row harness) · `router/` · `arms/` · `fuse/` (RRF + cross-encoder rerank) · `answer/` (the delivered answer) · `report/` (the deliverable's own checks) |
+| `qset/questions.jsonl` | the evaluation instrument: 150 questions, each with a gold answer and an evidence target |
+| `results/` | every judged table and gate record — `results.csv`, `head_to_head.csv`, `class_strategy.json` |
+| `corpus/`, `CORPUS.md` | the documents, and their provenance and licence notes |
+| `papers/` | the two source papers |
 
-Restructured for the two-part assignment: three standalone systems are benchmarked, and the delivered system is a fourth row that shares one graph. **Phase 1 measures; Phase 2 delivers — and Phase 1's result is that the augmentations win the papers' rubric, with a measured cost in accuracy and latency.** The demo is gone; the deliverable is an oral presentation plus a report.
+`parsed/` holds parse, chunk and index outputs and is regenerated, not committed.
 
-- **`corpus`, `parse`, `qset`, `baseline` → done.** Each chunk keeps the block ids it was built from, so `§section` and the page range are **derived**, never guessed: a citation is `file.pdf, §section, p. N–M`, verified end to end (111/111 checks). The **`qset`** is frozen at commit **`2c5de79`** — and that commit predates any `router`, which is the ordering the whole benchmark rests on.
-- **The baseline row is the benchmark's first number.** 150/150 questions answered, every answer carrying at least one citation, zero fabricated sources; 2.44 M prompt + 291 k completion tokens, 10.4 s mean latency, `k = 20`. Its per-class **retrieval** hit rate is what the other two rows have to beat: factoid **50/50** inside the top 5, multi-hop **49/50** inside the top 10, thematic only **20/50** at `k = 20` — climbing to **48/50** by `k = 100`, which makes it a context-budget problem rather than a retrieval failure (`nodes/baseline.md` → Discoveries).
-- **`kg-light` closed 2026-10-16 — gate green** (`sessions/S07-kg-light.md`). LightRAG (`453dce8`) ingested **our** 369 chunks through a fourth ingestion route — SDK raw enqueue plus a custom chunker — because each of the three documented routes trades one of our chunks / our `file_path` / extraction. The trade taken: the chunks are not sidecar-backfill eligible, so page provenance comes from our own map, which is what §5.6 asks for anyway. Measured: **2,347 LLM calls · 3.43 M tokens · 648.8 s** for the extraction pass (**6.4 calls / 9.3 k tokens per chunk**) — the cost side of D1, now a number. The gate, all printed: map **369 ↔ 369 bijective**, **14,927 `source_id` references with 0 unmapped**, four `vector(1024)` columns, and a query per class returning entities, relations and chunks. The endpoint R1 was owed is closed too: all 369 chunks are **identical** through the module and through HTTP — `max|Δ| 0.000e+00` on the full set, both encodings (`hyrag.serving.checks`; a request whose shape differs from the reference's batching can differ by ~2e-07 in float32, which the check prints and tolerates at 1e-06 — a real encoding difference is ≥ 1e-03). **R2's completion calls go through the local proxy** (`hyrag/serving/llm.py`), so this row reports cost per query the way R3 does — verified: 2 calls · 35,303 tokens · 30.9 s on an uncached question.
-- **`kg-graph` closed 2026-10-16 — gate green** (`sessions/S08-kg-graph.md`). GraphRAG 3.3.0 ran **natively** over the same chunks in its own interpreter (it cannot share one with `docling` — disjoint `typer` ranges) and through its own CLI: exit 0 in **1,527.2 s**, **369/369 text units matched to our chunks by content**, **2,817 entities · 5,895 relations · 644 communities · 644 reports**, **2,655 LLM calls · 5.94 M tokens · 0 errors**. One structural repair was needed and lives in our own service: GraphRAG asks for `json_schema` structured output, DeepSeek has only `json_object`, so `hyrag/serving/llm.py` rewrites the type (675 of 2,655 calls) and counts every call's tokens. Its thematic global query answered in **25,730 characters / 344 s** with dynamic community selection, and its `[Data: Reports (…)]` citations **resolve** — 115 marker ids → **210 `file, §section, p. N–M` citations, 0 unresolved** (`hyrag/kg_graph/resolve.py`). **With R2's 3.43 M tokens and 10.8 min beside it, D1's ledger is complete: the second extraction pass cost 5.94 M tokens and 25.5 min.**
-- **`judge` closed 2026-10-16 — gate green** (`sessions/S09-judge.md`), and **Phase 1 is complete**. Scale decided up front: R3's thematic cell — the only expensive one — was sampled at **n=20** (systematic, every 2.5th question; all 11 documents; ids in `results/judge_pins.json`), everything else at the full 50. Generation: R2 150/150 ($0.97) · R3 120/120 (20 thematic `global`, 50 + 50 `local`, $8.44) · R1 already on disk. Judging: **5,220 pointwise scores · two blind pairwise protocols (720 comparisons) · 15 blinding controls · 0 failures**. **The rubric is the papers' three criteria** (Comprehensiveness · Diversity · Empowerment; changed 2026-10-16), with a gold-anchored **Accuracy** column beside it and never inside it. **The papers' result reproduces: kg-graph wins every class head-to-head — 76% factoid · 65% multi-hop · 90% thematic** (per-question majority 39/50 · 33/50 · 20/20) — at a measured cost: it is the **least accurate** row on the two classes with a gold answer (0.92 / 0.79 against 0.90 / 0.90), its factoid retrieval misses the target chunk 8 times in 50, and its thematic cell costs **$0.38 and 358 s per query** (79×) for a 24,056-character report. **Head-to-head, the two LightRAG claims split**: kg-light beats the naive baseline **56%** (factoid) and **74%** (multi-hop) and ties on thematic — but loses to kg-graph **18% · 24% · 5%**, so "LightRAG beats conventional RAG" reproduces and "LightRAG beats GraphRAG" does not (`results/head_to_head.csv`, two-way, 1,080 comparisons). **The pointwise matrix disagrees with the pairwise and the ceiling explains it**: 94% of Comprehensiveness scores are exactly 1.0, so a bounded scale cannot rank "covers more"; §7.2 makes the paired comparison the number that carries the claim, and the strategy table follows it. **The padding control was run and dropped**: with it the ranking inverts (baseline 82% / 76% / 50%), which is exactly why it is now a *sensitivity* run (`results/judge_pairwise.jsonl`) rather than the table. `results/class_strategy.json` reads **kg-graph for all three classes** with cost and the pointwise best beside it; the blinding control says the comparison was blind (44% against 33% chance). Whole-benchmark spend ≈ **$14** including both index builds; the judged table $1.58 (`sessions/S09-judge.md` → Findings).
-- **`bridge` closed 2026-10-17 — gate green** (`sessions/S10-bridge.md`). GraphRAG 3.3.0's **community layer only** — `create_communities · create_community_reports · generate_text_embeddings`, switched by a `workflows:` list in the root's settings copy — over LightRAG's graph re-expressed as four parquet tables. **4,389 entities · 6,775 relationships → 932 communities · 932 reports**, run twice and **identical** (byte-exact except `communities.id`, which GraphRAG assigns `uuid4()`; run two served **930/932 reports from cache** with 2 proxy calls). **0 dangling `text_unit_ids`** in both directions, **342/369 chunks reachable** from reports (native R3: 338). Cost, measured: **1,059 calls · 4.56 M tokens · $1.00 · 30.2 min** against R3's 2,655 / 5.94 M / 25.5 min — sharing the graph pays in **calls (−60%) and tokens (−23%)**, not in wall clock: embeddings dominate, and the bridged graph is 56% larger. **The trap it cost:** GraphRAG's `stable_lcc` uppercases every edge endpoint and `create_communities` joins those names back to `entities.title`, so mixed-case titles are dropped with no log line — 370/4,525 entities reached a community (8%) before the names were normalised, 3,771/4,389 (86%) after.
-- **`router` closed 2026-10-17 — gate green** (`sessions/S11-router.md`). Condense then classify (D6, D5): one proxy call each, `thinking` off, `temperature 0`, JSON mode for the label. The held-out split — **120 dev / 30 eval**, by rule, frozen before the prompt was written — scores **0.867**: factoid **1.00**, thematic **1.00**, **multi-hop 0.60**. The dev half shows **0.62**, and that agreement is the finding: those questions read like single-fact lookups and are labelled multi-hop because *answering* them needs two places, so a text-only router has a ceiling there (a multi-hop miss loses fusion, not the arm). **The strategy table states the budget it was chosen under — ≤ 60 s / ≤ $0.02 per turn — and the budget deliberately loses the benchmark's thematic winner**: kg-graph's 90% pairwise win costs 357.8 s and $0.380 per query (measured 2026-10-17: **280.5 s / ≈ $0.45** bridged), so thematic ships on kg-light (51.3 s / $0.0094) and the report carries the price. Node cost ≈ **$0.02**.
-- **`arms` closed 2026-10-17 — gate green** (`sessions/S12-arms.md`). Two adapters, one `AnswerRecord` (answer · citations at the arm's own unit · evidence chunk ids · tokens · calls · latency · method · `ranked`). Gate: four rows, six fields each — kg-light factoid **4.0 s** and thematic **54.9 s**; bridged multi-hop `local` **10.1 s / 16 canonical citations** and thematic `global`+dynamic+level 2 **280.5 s / 175 canonical citations / 800 calls / 1.36 M in + 0.41 M out**. **0 unresolved ids in all four rows**, whole gate **≈ $0.47**. Two measured corrections: the bridged thematic turn is **faster** than the bridge node's ~500 s estimate (dynamic selection rates level-2 communities, not all 932), so the §7.4 sample is ≈ $2.25; and the bridged `local` search answers multi-hop in 10 s for one call, which makes fusion a cents-per-turn decision rather than a budget problem.
-- **`fuse` closed 2026-10-17 — gate green** (`sessions/S13-fuse.md`). RRF by **rank** (`k = 60`, never by score — D5), then a cross-encoder over a 20-chunk shortlist, then reorder. Gate: three dev multi-hop questions with both arms live — **both arms in the top-10 on all three** (10/10 · 8/7 · 8/8), the reranker moved **18/20 · 18/20 · 14/20** positions, **20/20 citations resolved, 0 unresolved**, deterministic on a repeat fusion; **≈ $0.022** all in. The reranker is `BAAI/bge-reranker-base` (1.1 GB) fetched through **`hf-mirror.com`** because `huggingface.co` is unreachable from this machine, and chosen over `v2-m3` for disk (4.4 GB → 3.1 GB free). Half the shortlist exceeds its 512-token window; every truncated chunk is flagged in the record.
-- **`answer` closed 2026-10-17 — gate green** (`sessions/S14-answer.md`), and its **R4 row is judged** (`sessions/S17-r4.md`). One generation over the routed evidence, citation strings handed in and required verbatim; **0 invented citations across 120 judged answers**, every citation `file, §section, p. N–M`. Judged: **factoid 0.9118 (pointwise best of all four rows) · accuracy 0.980** · multi-hop 0.8311 / 0.895 · thematic **0.8178 — the weakest cell, and the honest one**: the 12-chunk budget puts the evidence target below the cut on 3 of 20 thematic questions (hit 0.25 against LightRAG's 0.40). Head-to-head: beats R1 **72% / 64%**, beats R2 **66%** and ties it on multi-hop, loses to R3 **36% / 36% / 5%**, loses thematic to everyone. ~$0.005–0.011 and 4.9 / 30.6 / 41.8 s per query.
-- **`report` closed 2026-10-17 — gate green** (`sessions/S15-report.md`). `REPORT.md`: the benchmark, the delivered system, the costs by row, ten findings (plus the delivered row's), the limitations, the pins. Gate: **23 named paths exist, 4 pins match, 12 headline figures trace**, and the spend is **recomputed from the proxy log** — 33,201 calls · **$17.66**. **§7.4 measured** on five thematic questions: bridging keeps retrieval **1.00**, writes answers **37% shorter**, runs **33% faster**, costs **4% more** per turn.
-- **Outputs:** `parsed/<stem>/blocks.jsonl` (LightRAG sidecar format) · `parsed/<stem>/meta.json` · `parsed/<stem>/chunks.jsonl` · `parsed/_ingest.jsonl` (the set every row reads) · `parsed/kg_light_idmap.json` (the §5.6 map, 369 entries) · `parsed/kg_light_extraction.json` (the extraction cost) · `parsed/lightrag/hyrag/graph_chunk_entity_relation.graphml` (4,525 nodes / 6,835 edges) · `parsed/kg_graph/index_record.json` (R3's run: pin, settings hash, tables, windowed tokens, wall clock) · `parsed/kg_graph_textunit_map.json` (369 GraphRAG text units → our chunks) · `parsed/kg_graph/output/*.parquet` + `graph.graphml` + `lancedb/` · `parsed/kg_graph_bridged/` (the bridged index: `output/*.parquet` + `lancedb/` + `index_record.json` + `run1/` for the gate's diff) · `parsed/llm_proxy.jsonl` · `results/kg_graph_queries.jsonl` · `qset/questions.jsonl` — **committed**. `parsed/` and `results/` are gitignored — regenerable.
-- **Run it** — always `uv run …` from the repo root (the packages are not installed, and bare `python` is Anaconda's):
-  `python -m hyrag.serving.cli serve` · `… checks --write-reference` then `… checks` — the embedding service (`:8001`) and the equality check every row depends on
-  `python -m hyrag.parse.cli parse --all` · `… check --all` · `… show <stem> --headings|--labels|--page N`
-  `python -m hyrag.chunker.cli chunk --all` · `… check --all` · `… cite <stem> --index N [--verify] [--drop-provenance]`
-  `python -m hyrag.qset.cli show <draft_id>` · `… freeze` — reading the candidates never re-runs a model
-  `python -m hyrag.baseline.cli ingest` · `… search --question-id fact-003` · `… check` · `… answer --question-id fact-003` · `… answer --all` (~26 min)
-  `python -m hyrag.kg_light.cli ingest [--limit 1] [--retry-failed]` · `… map` · `… query --class thematic` · `… answer [--eval-set]` · `… check` · `… reset` — R2 (~11 min for the full extraction pass; the LLM cache makes a development re-run cheap, and the **scored** `answer` run disables it so the cost column is real)
-  `python -m hyrag.kg_graph.cli [--smoke] inputs [--clean]` · `… index` · `… query --class thematic` · `… answer --eval-set` · `… counts` · `… check` — R3 (~26 min; its interpreter is `.venv-graphrag`, rebuilt from `envs/graphrag/requirements.txt`)
-  `python -m hyrag.kg_graph.bridge.cli [--smoke] prepare [--clean]` · `… index` · `… rerun` · `… counts` · `… check --against parsed/kg_graph_bridged/run1` — R4's index over R2's graph (~30 min for run one, ~4 min for `rerun`, which is half the gate)
-  `python -m hyrag.router.cli split` · `… table` · `… classify --id fact-014` · `… eval [--split dev]` · `… dialogue` · `… check` — the router (≈ $0.002 per eval, 873 ms/query; `check` is the gate)
-  `python -m hyrag.arms.cli answer --arm kg-light|kg-graph-bridged [--class …] [--ids …]` · `… check` — the two retrieval arms (the gate ≈ $0.47; one bridged thematic answer ≈ $0.45)
-  `python -m hyrag.fuse.cli fuse --ids mult-051` · `… check` — RRF then cross-encoder rerank over both arms (the gate ≈ $0.02; the reranker loads from `models/`, CPU)
-  `python -m hyrag.answer.cli check` · `… answer --id mult-051` · `… eval` — the delivered answer (gate ≈ $0.02; `eval` ≈ $0.24 for 30 questions)
-  `python -m hyrag.report.cli check` · `… ablation` — the deliverable's gate (free) and §7.4's sample (≈ $1.9, run once)
-  `python -m hyrag.judge.cli smoke` · `… run` · `… table` · `… check` · `… figures` — the judged table (~5,200 pointwise calls ≈ $1.4, one command each; `table` is the gate)
-  `python -m hyrag.embedding.checks` — the encoder's invariants and its recall curve
-- Git: initialised 2026-10-07; the pipeline through `qset` is committed. The one commit whose *order* matters is the question set's (`2c5de79`) — it must predate `router`, and does. Do not amend or rebase it.
+**Three sizeable facts, for orientation:** the corpus is 18 documents · 3,939 pp, and the evaluation runs on the **508 pp dev slice**; the pipeline turns it into **375 chunks** (369 unique, 6 collapsed duplicates) and 150 questions; the two index builds are LightRAG's **4,525 entities · 6,835 relations** and GraphRAG's **2,817 entities · 5,895 relations · 644 communities**, against the bridged index's **4,389 entities · 6,775 relationships · 932 communities** — one extraction pass, 56% more entities to summarise.
+
+---
+
+## Reproducing this
+
+Pinned. These five decide whether a number is reproducible:
+
+| what | pin | source |
+|---|---|---|
+| GraphRAG | `graphrag==3.3.0`, own interpreter | `envs/graphrag/requirements.txt` |
+| LightRAG | rev `453dce8` | `pyproject.toml` |
+| completion model | `deepseek-flash`, thinking disabled for extraction and JSON | `parsed/llm_proxy.jsonl` |
+| embeddings | `bge-m3`, 1024 dims, local service | `hyrag/serving/embeddings.py` |
+| reranker | `BAAI/bge-reranker-base`, 512-token window, CPU | `hyrag/fuse/rerank.py` |
+
+- **No containers.** Postgres 17 + `pgvector` from Homebrew holds the KV, vectors and status; the graph stays an in-process NetworkX object, so the server runs single-worker.
+- **Two interpreters, on purpose.** `.venv` holds everything except GraphRAG; `.venv-graphrag` holds `graphrag==3.3.0`, because it and `docling` require disjoint `typer` ranges.
+- **One service must be running.** `.venv/bin/python -m hyrag.serving.cli serve` (`:8001`) offers local bge-m3 embeddings **and** the DeepSeek chat route, which is also where per-call token accounting comes from. R2 and R3 depend on it; the baseline imports the encoder in-process.
+- **Nothing leaves the machine** except calls to the local DeepSeek endpoint: the corpus holds © OEM material under terms that forbid posting it on any network.
+- Commands are `uv run python -m …` from the repo root, grouped by node — `REPORT.md` §7 has the ordered list. Each stage ships its own gate (`… check`), and a stage is only "done" when that gate prints green.
+
+Everything else — the library traps, the disk ceiling, the serving-process hazards — is in *Landmines* and *Environment* at the end of this file, for whoever runs the code next.
 
 ---
 
 ## Landmines
+
+*Appendix — none of this is needed to read the results. It is here for whoever runs the code.*
 
 Non-obvious constraints. Each has already cost time once, or is verified in the source and would cost time silently.
 
@@ -195,7 +195,7 @@ Non-obvious constraints. Each has already cost time once, or is verified in the 
 - Citations are `file, §section, page range` — **never a single page number** (D13). Page anchors exist in the parser sidecar but LightRAG drops them at chunking, and **59% of chunks span a page boundary** at the shipped chunk size (measured on the slice). The block→page join is custom code we own.
 - LightRAG's `native` parser **refuses PDFs** (docx/md/textpack only); `legacy` emits no sidecar. Page-aware parsing is Docling, native, in-process.
 - **Duplicate chunk text collapses.** LightRAG keys chunks with a content hash, so two byte-identical chunks — routine in an MMEL — become **one** key with **one** `file_path`, and a citation then points at the wrong document. Handled at chunking: exact duplicates are collapsed and **every** location is recorded, and the checks assert no identical pair reaches the ingest set (6 collapsed on the slice today). Same failure class as the entity merge below, one layer down.
-- The bridge's id join is a **map with a gate**, never a fuzzy match — built by reading LightRAG's chunk records back and asserted bijective at ingest, with any unmapped `source_id` a stop-the-line error (see *Decisions* → the provenance chain).
+- The bridge's id join is a **map with a gate**, never a fuzzy match — built by reading LightRAG's chunk records back and asserted bijective at ingest, with any unmapped `source_id` a stop-the-line error (see *Evaluation protocol* → *Citations resolve through ids*).
 - **The route R2 uses keeps our chunks and loses the sidecar backfill.** LightRAG's three documented ingest paths each trade one of *our chunks* / *our `file_path`* / *extraction*; the fourth — SDK raw enqueue with a custom `chunking_func` — keeps all three, but custom chunker output is **not eligible for source-span sidecar backfill**, so the chunks carry no LightRAG-side page span. Fine here: page provenance comes from our own map (`chunk_id → occurrences → file, §section, page range`). Do not "fix" this by switching to the document pipeline — that re-chunks (D16).
 - **The en dash is a landmine for every string comparison.** Our citations use `p. 62–63` with an **en dash U+2013** (`format_page_range`); the model reliably writes `p. 62-63` with an ASCII hyphen. A plain substring check therefore reads a *correct* citation as missing — it cost one answer its citation on the first baseline run. Fold dash variants on both sides before comparing (`hyrag/baseline/answer.py::_fold`). This applies to the **judge's citation-resolution metric** (§7.3) and to anything resolving LightRAG's `* [n] file_path` references back to our provenance. Same family as the `U+2212` minus sign in AIM's page labels.
 
@@ -235,6 +235,8 @@ Non-obvious constraints. Each has already cost time once, or is verified in the 
 
 ## Environment
 
+*Appendix — the machine the numbers were produced on.*
+
 `brew` · `uv` · `node` · `python3` present. **No Docker** — and none needed.
 
 - **Installed since 2026-10-12:** Postgres 17 + pgvector 0.8.7 (Homebrew, `hyrag` database, trust auth on localhost), `hyrag`'s Python deps via `uv` (docling, tiktoken, psycopg, pgvector, fastapi, uvicorn, openai, asyncpg, pyarrow, `lightrag-hku` at the pin).
@@ -244,26 +246,4 @@ Non-obvious constraints. Each has already cost time once, or is verified in the 
 - **Use `uv`, not conda.** `python3` on PATH is Anaconda's. Anaconda's `pg_config` is also on PATH — harmless for bottled installs, a hazard for source builds.
 - Storage: **Postgres via Homebrew + NetworkX for the graph** — no containers (D15). `pgvector` for the dense index; `tsvector` is Postgres core but currently has no consumer.
 - NetworkX requires the LightRAG server to run **single-worker** (`WORKERS=1`); multiple workers each hold their own graph and corrupt each other.
-- **Disk is the tightest constraint on this machine — recheck before every download.** *2026-10-17 (after `fuse`): **3.1 GB free**, the data volume at 99% (182/228 GB).* The repo is 4.5 GB (`.venv` 1.5 GB · `.venv-graphrag` 0.78 GB · corpus 0.45 GB · `parsed/` 0.65 GB · `models/reranker` 1.1 GB). Nothing new is still to come; the rest of Phase 2 is text. **Reclaimable:** `uv cache prune` (uv's cache is mostly unpacked wheels no environment references), `parsed/kg_graph/cache` (194 MB) and `parsed/kg_graph_bridged/` (316 MB, of which 194 MB is the report cache that makes `rerun` cheap). Do not start a download without clearing space first. Do not start a model download without clearing space first; a full disk fails as a confusing torch or Postgres error, not as an honest one.
-
----
-
-## Next step
-
-**Phase 1 is done — the judged table exists.** `results/results.csv` is the deliverable, `results/class_strategy.json` is Phase 2's router input, `nodes/judge.md` → *Discoveries* is the condensed story and `sessions/S09-judge.md` has the full record. Read those before touching Phase 2.
-
-**`bridge` closed 2026-10-17** — `nodes/bridge.md` → *Discoveries* and `sessions/S10-bridge.md`. Sharing the graph bought **−60% calls and −23% tokens** but **not** wall clock (1,810.8 s against R3's 1,527.2 s): embeddings dominate both runs and the bridged graph is 56% larger. Two numbers Phase 2 inherits: the bridged index is **$1.00** to build and a bridged thematic turn rates **932 reports** through dynamic community selection instead of native's 644 — roughly **1.4× R3's 358 s**, which `arms`/`router` must price before `fuse` is built.
-
-**`router` closed 2026-10-17** — `nodes/router.md` → *Discoveries* and `sessions/S11-router.md`. Two numbers the rest of Phase 2 inherits: **0.867 held-out accuracy** with multi-hop as the known boundary, and a shipped table whose budget **excludes the benchmark's thematic winner** — kg-graph wins 90% pairwise there and costs 357.8 s / $0.380, so thematic routes to kg-light and the report states the price.
-
-**`arms` closed 2026-10-17** — `nodes/arms.md` → *Discoveries* and `sessions/S12-arms.md`. Both retrieval systems now emit the same record, and the gate priced them: four rows, six fields each, **$0.47**. Two numbers to carry forward: the bridged thematic turn is **280.5 s / ≈ $0.45** with 175 canonical citations (faster than the bridge node's estimate — dynamic selection rates level-2 communities, not all 932), and the bridged `local` search answers multi-hop in **10 s for one call**, so fusion costs cents.
-
-**`fuse` closed 2026-10-17** — `nodes/fuse.md` → *Discoveries* and `sessions/S13-fuse.md`. RRF `k = 60` then a cross-encoder: both arms land in every fused top-10, the reranker moves 14–18 of 20 positions, and every shortlisted chunk cites a real page range. The reranker is local (`models/`, 1.1 GB) and half the shortlist is truncated at 512 tokens — flagged per chunk, not smoothed away.
-
-**`answer` and `report` closed 2026-10-17** — `nodes/answer.md`, `nodes/report.md`, `sessions/S14-answer.md`, `sessions/S15-report.md`. The delivered row is measured (evidence hit 1.00 · 1.00 · 0.40, 0 invented citations in 30 answers, $0.24); the §7.4 ablation is measured (bridged keeps retrieval, 37% shorter answers, 33% faster, 4% costlier); and `REPORT.md` passes its own traceability gate.
-
-**The R4 addendum ran on 2026-10-17** (`sessions/S17-r4.md`): the delivered row answered the judge's 120 questions for **$0.92**, the judged passes added **$1.16**, and `results.csv` now carries a fourth row plus nine new head-to-head pairs. **What is left is the oral**, and one optional experiment — a judged native-vs-bridged comparison on the five ablation questions (their answer text was not stored; regenerating it is ≈ $2.25). Measured project spend: **$17.66** of proxy-log calls, **≈ $18.93 all-in** with the two pre-proxy passes.
-
-**What Phase 1 hands forward.** On the papers' rubric the augmentation wins on every class, and the thematic class most of all — but the delivered system cannot ship a 358-second, 24k-character turn, so the router's job is to hold the coverage preference at a latency budget. **Phase 2's arms are LightRAG and the bridged GraphRAG, and there is no separate naive arm** (decided 2026-10-16): the naive method returns as LightRAG's own `naive` mode, which is already tuned. **The `judge` addendum is done** (`sessions/S17-r4.md`): R4 is judged on the same 120 questions and the same protocol, and it lands where the design predicted — pointwise best on factoid, worst on thematic, beaten head-to-head by kg-graph in every class. Its thematic weakness is the evidence budget (top 12 chunks), not the arms. **What the addendum did *not* do** is judge §7.4's native-vs-bridged pair: the ablation stored lengths and citations, not the answer text, so a judged comparison needs a regenerated bridged run (≈ $2.25). That remains the one open experiment, and it should carry an **answer-length target** — the coverage rubric rewards whichever arm writes longer, as R4's thematic cell shows.
-
-**Landmine from the judge session:** do not `uv add` while the serving process is running — the resolve rewrote `transformers`/`huggingface-hub` under the live process and `/v1/embeddings` began returning 500 with `/health` still green. Restart it, then run `hyrag.serving.checks` to prove the encoder is bit-identical before trusting any row's stored vectors.
+- **Disk is the tightest constraint on this machine — recheck before every download.** *2026-10-17 (after `fuse`): **3.1 GB free**, the data volume at 99% (182/228 GB).* The repo is 4.5 GB (`.venv` 1.5 GB · `.venv-graphrag` 0.78 GB · corpus 0.45 GB · `parsed/` 0.65 GB · `models/reranker` 1.1 GB). **Reclaimable:** `uv cache prune` (uv's cache is mostly unpacked wheels no environment references), `parsed/kg_graph/cache` (194 MB) and `parsed/kg_graph_bridged/` (316 MB, of which 194 MB is the report cache that makes `rerun` cheap). Do not start a download without clearing space first. Do not start a model download without clearing space first; a full disk fails as a confusing torch or Postgres error, not as an honest one.
